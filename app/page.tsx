@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, BookOpen } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { EntryListItem } from "@/components/entry-list-item";
@@ -13,13 +13,35 @@ export default function HomePage() {
   const [dragging, setDragging] = useState(false);
   const isEmpty = loaded && entries.length === 0;
 
+  // Dzisiejsza data i powitanie ustawiane po zamontowaniu (unika rozjazdu hydracji).
+  const [today, setToday] = useState("");
+  const [greeting, setGreeting] = useState("Dzień dobry");
+  useEffect(() => {
+    const now = new Date();
+    setToday(
+      now.toLocaleDateString("pl-PL", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+      }),
+    );
+    const hour = now.getHours();
+    setGreeting(hour >= 18 || hour < 5 ? "Dobry wieczór" : "Dzień dobry");
+  }, []);
+
   return (
     <main className="mx-auto w-full max-w-2xl px-4 py-10 pb-28">
       <header className="mb-8">
-        <p className="text-sm uppercase tracking-wide text-muted-foreground">
-          Mój Dziennik
+        <p className="flex flex-wrap items-center gap-2 text-sm uppercase tracking-wide text-muted-foreground">
+          <span>Mój Dziennik</span>
+          {today && (
+            <>
+              <span aria-hidden>·</span>
+              <span className="text-xs">{today}</span>
+            </>
+          )}
         </p>
-        <h1 className="text-3xl font-semibold">Twoje wpisy</h1>
+        <h1 className="text-3xl font-semibold">{greeting}</h1>
       </header>
 
       {!loaded ? (
