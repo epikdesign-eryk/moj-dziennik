@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Nunito_Sans, Lora } from "next/font/google";
 import "./globals.css";
+import { AppShell } from "@/components/app-shell";
 
 const sans = Nunito_Sans({
   variable: "--font-sans",
@@ -27,7 +28,9 @@ export default function RootLayout({
       lang="pl"
       className={`${sans.variable} ${serif.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <AppShell>{children}</AppShell>
+      </body>
     </html>
   );
 }

@@ -4,6 +4,7 @@
 import type { JournalEntry, JournalEntryDraft } from "@/types/journal";
 
 const STORAGE_KEY = "moj-dziennik:entries";
+// Store: localStorage + subskrypcja (useSyncExternalStore).
 
 /** Czy mamy dostęp do localStorage (zabezpieczenie przed SSR). */
 function isBrowser(): boolean {
@@ -26,11 +27,46 @@ function readRaw(): JournalEntry[] {
 function writeRaw(entries: JournalEntry[]): void {
   if (!isBrowser()) return;
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+  notify();
 }
 
 /** Wszystkie wpisy, posortowane od najnowszego do najstarszego. */
 export function getAll(): JournalEntry[] {
   return readRaw().sort((a, b) => b.date.localeCompare(a.date));
+}
+
+// --- Współdzielony store dla useSyncExternalStore ---------------------------
+// Pojedyncze źródło prawdy dla wszystkich konsumentów (panel boczny + strony).
+// Migawka jest cache'owana, by zwracać stabilną referencję między zmianami —
+// inaczej useSyncExternalStore wpada w pętlę re-renderów.
+
+const listeners = new Set<() => void>();
+const EMPTY: JournalEntry[] = [];
+let snapshot: JournalEntry[] | null = null;
+
+/** Powiadamia subskrybentów po każdej mutacji (wołane z writeRaw). */
+export function notify(): void {
+  snapshot = null; // unieważnij cache — przeliczy się przy najbliższym getSnapshot
+  for (const listener of listeners) listener();
+}
+
+/** Subskrypcja zmian listy. Zwraca funkcję odsubskrybowania. */
+export function subscribe(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+/** Aktualna migawka (cache'owana referencja) dla klienta. */
+export function getSnapshot(): JournalEntry[] {
+  if (snapshot === null) snapshot = getAll();
+  return snapshot;
+}
+
+/** Stabilna, pusta migawka dla SSR (brak localStorage). */
+export function getServerSnapshot(): JournalEntry[] {
+  return EMPTY;
 }
 
 /** Pojedynczy wpis po id (lub `undefined`). */

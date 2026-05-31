@@ -1,41 +1,42 @@
 "use client";
 
 // Hook spinający komponenty z warstwą localStorage.
-// Dane wczytywane są po zamontowaniu (useEffect), by uniknąć rozjazdu
-// między renderem serwerowym a klientem (hydration mismatch).
+// Lista pochodzi ze współdzielonego store (useSyncExternalStore), więc wszyscy
+// konsumenci (panel boczny + aktywna strona) widzą zawsze ten sam, aktualny stan.
+// `loaded` ustawiane jest po zamontowaniu, by uniknąć rozjazdu hydracji
+// (SSR zwraca pustą migawkę).
 
-import { useCallback, useEffect, useState } from "react";
-import type { JournalEntry, JournalEntryDraft } from "@/types/journal";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import type { JournalEntryDraft } from "@/types/journal";
 import * as storage from "@/lib/storage";
 
 export function useEntries() {
-  const [entries, setEntries] = useState<JournalEntry[]>([]);
+  const entries = useSyncExternalStore(
+    storage.subscribe,
+    storage.getSnapshot,
+    storage.getServerSnapshot,
+  );
   const [loaded, setLoaded] = useState(false);
 
-  const refresh = useCallback(() => {
-    setEntries(storage.getAll());
+  useEffect(() => {
+    setLoaded(true);
   }, []);
 
-  useEffect(() => {
-    refresh();
-    setLoaded(true);
-  }, [refresh]);
+  // Mutacje zapisują do localStorage; odświeżenie konsumentów robi notify().
+  const refresh = useCallback(() => {
+    storage.notify();
+  }, []);
 
   const createEntry = useCallback((draft: JournalEntryDraft) => {
-    const entry = storage.create(draft);
-    setEntries(storage.getAll());
-    return entry;
+    return storage.create(draft);
   }, []);
 
   const updateEntry = useCallback((id: string, draft: JournalEntryDraft) => {
-    const entry = storage.update(id, draft);
-    setEntries(storage.getAll());
-    return entry;
+    return storage.update(id, draft);
   }, []);
 
   const removeEntry = useCallback((id: string) => {
     storage.remove(id);
-    setEntries(storage.getAll());
   }, []);
 
   return { entries, loaded, refresh, createEntry, updateEntry, removeEntry };

@@ -19,14 +19,20 @@ interface EntryListItemProps {
   onDelete: (id: string) => void;
   /** Informuje rodzica o wejściu/wyjściu z trybu przeciągania (np. by ukryć FAB). */
   onDragChange?: (dragging: boolean) => void;
+  /** Wyróżnia kartę jako aktualnie wybraną (panel boczny na desktopie). */
+  active?: boolean;
 }
 
-export function EntryListItem({ entry, onDelete, onDragChange }: EntryListItemProps) {
+export function EntryListItem({ entry, onDelete, onDragChange, active }: EntryListItemProps) {
   const preview = excerpt(entry.content);
 
   const [dragging, setDragging] = useState(false);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [overZone, setOverZone] = useState(false);
+  // Pozycja/szerokość karty zapamiętana w chwili startu przeciągania — pływająca
+  // kopia renderowana jest przez portal (fixed), by nie była przycinana przez
+  // kontener z overflow (np. przewijany panel boczny na desktopie).
+  const [dragRect, setDragRect] = useState<{ left: number; top: number; width: number } | null>(null);
 
   const startRef = useRef<{ x: number; y: number } | null>(null);
   const pointerIdRef = useRef<number | null>(null);
@@ -60,6 +66,8 @@ export function EntryListItem({ entry, onDelete, onDragChange }: EntryListItemPr
       // Aktywacja przeciągania po przytrzymaniu.
       draggingRef.current = true;
       didDragRef.current = true;
+      const r = cardRef.current?.getBoundingClientRect();
+      if (r) setDragRect({ left: r.left, top: r.top, width: r.width });
       setDragging(true);
       onDragChange?.(true);
       try {
@@ -97,6 +105,7 @@ export function EntryListItem({ entry, onDelete, onDragChange }: EntryListItemPr
       setDragging(false);
       setOverZone(false);
       setOffset({ x: 0, y: 0 });
+      setDragRect(null);
       onDragChange?.(false);
       try {
         cardRef.current?.releasePointerCapture(e.pointerId);
@@ -108,6 +117,43 @@ export function EntryListItem({ entry, onDelete, onDragChange }: EntryListItemPr
     startRef.current = null;
   }
 
+  // Treść karty — renderowana w miejscu (w liście) oraz, podczas przeciągania,
+  // jako pływająca kopia w portalu. `floating` przełącza styl chwytania/cienia
+  // i czerwoną nakładkę nad strefą usuwania.
+  const renderCard = (floating: boolean) => (
+    <Card
+      className={cn(
+        "relative flex-row items-center gap-4 p-5 transition-all duration-150 ease-out will-change-transform",
+        floating
+          ? "cursor-grabbing select-none shadow-xl ring-2 ring-primary"
+          : "hover:-translate-y-1 hover:bg-accent/40 hover:shadow-lg",
+        active && !floating && "bg-accent/50 ring-2 ring-primary",
+      )}
+    >
+      <span className="text-3xl leading-none" aria-hidden>
+        {moodEmoji(entry.mood)}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-xs uppercase tracking-wide text-muted-foreground">
+          {formatDate(entry.date)}
+        </p>
+        <h3 className="truncate text-lg font-semibold">
+          {entry.title || "(bez tytułu)"}
+        </h3>
+        {preview && (
+          <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
+            {preview}
+          </p>
+        )}
+      </div>
+
+      {/* Czerwony overlay na całą kartę, gdy jest nad strefą usuwania. */}
+      {floating && overZone && (
+        <div className="pointer-events-none absolute inset-0 z-10 bg-destructive/60" />
+      )}
+    </Card>
+  );
+
   return (
     <>
       <div
@@ -116,19 +162,14 @@ export function EntryListItem({ entry, onDelete, onDragChange }: EntryListItemPr
         onPointerMove={handlePointerMove}
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
-        style={
-          dragging
-            ? {
-                transform: `translate(${offset.x}px, ${offset.y}px) rotate(-1.5deg)`,
-                touchAction: "none",
-              }
-            : undefined
-        }
-        className={cn("relative", dragging && "z-[60]")}
+        style={dragging ? { touchAction: "none" } : undefined}
+        className="relative"
       >
+        {/* Karta w miejscu trzyma layout listy; podczas przeciągania jest ukryta,
+            a widoczna jest pływająca kopia z portalu. */}
         <Link
           href={`/entry/${entry.id}`}
-          className="block"
+          className={cn("block", dragging && "opacity-0")}
           draggable={false}
           onClick={(e) => {
             // Po przeciąganiu nie otwieramy wpisu.
@@ -138,38 +179,28 @@ export function EntryListItem({ entry, onDelete, onDragChange }: EntryListItemPr
             }
           }}
         >
-          <Card
-            className={cn(
-              "relative flex-row items-center gap-4 p-5 transition-all duration-150 ease-out will-change-transform",
-              dragging
-                ? "cursor-grabbing select-none shadow-xl ring-2 ring-primary"
-                : "hover:-translate-y-1 hover:bg-accent/40 hover:shadow-lg",
-            )}
-          >
-            <span className="text-3xl leading-none" aria-hidden>
-              {moodEmoji(entry.mood)}
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                {formatDate(entry.date)}
-              </p>
-              <h3 className="truncate text-lg font-semibold">
-                {entry.title || "(bez tytułu)"}
-              </h3>
-              {preview && (
-                <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
-                  {preview}
-                </p>
-              )}
-            </div>
-
-            {/* Czerwony overlay na całą kartę, gdy jest nad strefą usuwania. */}
-            {dragging && overZone && (
-              <div className="pointer-events-none absolute inset-0 z-10 bg-destructive/60" />
-            )}
-          </Card>
+          {renderCard(false)}
         </Link>
       </div>
+
+      {/* Pływająca kopia karty — fixed w portalu, nie przycinana przez overflow. */}
+      {dragging &&
+        dragRect &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            className="pointer-events-none fixed z-[60]"
+            style={{
+              left: dragRect.left,
+              top: dragRect.top,
+              width: dragRect.width,
+              transform: `translate(${offset.x}px, ${offset.y}px) rotate(-1.5deg)`,
+            }}
+          >
+            {renderCard(true)}
+          </div>,
+          document.body,
+        )}
 
       {dragging &&
         typeof document !== "undefined" &&

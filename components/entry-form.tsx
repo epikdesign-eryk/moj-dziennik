@@ -87,7 +87,7 @@ export function EntryForm({
       {/* Odstęp, by ostatnie pole nie chowało się pod przyklejonym paskiem akcji. */}
       <div className="h-24" aria-hidden />
 
-      <div className="fixed inset-x-0 bottom-0 z-40 bg-gradient-to-t from-background via-background to-transparent pt-10 pb-4">
+      <div className="fixed inset-x-0 bottom-0 z-40 bg-gradient-to-t from-background via-background to-transparent pt-10 pb-4 lg:left-[22rem]">
         <div className="mx-auto flex w-full max-w-2xl flex-col gap-2 px-4">
           {error && <p className="text-sm text-destructive">{error}</p>}
           <div className="flex items-center gap-3">

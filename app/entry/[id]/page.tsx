@@ -3,8 +3,9 @@
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
+import { ArrowLeft, Pencil, Trash2, Plus } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -60,10 +61,10 @@ export default function EntryPage() {
   return (
     <main className="mx-auto w-full max-w-2xl px-4 py-6">
       {/* Górny pasek: powrót po lewej, akcje (edycja/usuwanie) po prawej. */}
-      <div className="mb-10 flex items-center justify-between">
+      <div className="mb-10 flex items-center justify-between lg:justify-end">
         <Link
           href="/"
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground lg:hidden"
         >
           <ArrowLeft className="h-4 w-4" />
           wróć
@@ -143,6 +144,24 @@ export default function EntryPage() {
             dangerouslySetInnerHTML={{ __html: entry.content }}
           />
         </article>
+      )}
+
+      {/* Floating „Dodaj wpis" — tylko desktop i tylko w trybie podglądu,
+          by móc utworzyć nowy wpis nie wracając na stronę główną. */}
+      {!editing && (
+        <div className="fixed inset-x-0 bottom-6 z-50 hidden justify-center lg:flex">
+          <Link
+            href="/new"
+            aria-label="Dodaj wpis"
+            className={cn(
+              buttonVariants({ size: "lg" }),
+              "h-14 rounded-full px-6 text-base shadow-lg transition-all",
+            )}
+          >
+            <Plus className="h-5 w-5" />
+            Dodaj wpis
+          </Link>
+        </div>
       )}
     </main>
   );

@@ -13,65 +13,107 @@ export default function HomePage() {
   const [dragging, setDragging] = useState(false);
   const isEmpty = loaded && entries.length === 0;
 
-  // Dzisiejsza data i powitanie ustawiane po zamontowaniu (unika rozjazdu hydracji).
+  // Dzisiejsza data, godzina i powitanie ustawiane po zamontowaniu (unika rozjazdu hydracji).
   const [today, setToday] = useState("");
+  const [time, setTime] = useState("");
   const [greeting, setGreeting] = useState("Dzień dobry");
   useEffect(() => {
-    const now = new Date();
-    setToday(
-      now.toLocaleDateString("pl-PL", {
-        weekday: "long",
-        day: "numeric",
-        month: "long",
-      }),
-    );
-    const hour = now.getHours();
-    setGreeting(hour >= 18 || hour < 5 ? "Dobry wieczór" : "Dzień dobry");
+    const update = () => {
+      const now = new Date();
+      setToday(
+        now.toLocaleDateString("pl-PL", {
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+        }),
+      );
+      setTime(
+        now.toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" }),
+      );
+      const hour = now.getHours();
+      setGreeting(hour >= 18 || hour < 5 ? "Dobry wieczór" : "Dzień dobry");
+    };
+    update();
+    const id = window.setInterval(update, 60_000);
+    return () => window.clearInterval(id);
   }, []);
 
   return (
     <main className="mx-auto w-full max-w-2xl px-4 py-10 pb-28">
-      <header className="mb-8">
-        <p className="flex flex-wrap items-center gap-2 text-sm uppercase tracking-wide text-muted-foreground">
-          <span>Mój Dziennik</span>
-          {today && (
-            <>
-              <span aria-hidden>·</span>
-              <span className="text-xs">{today}</span>
-            </>
-          )}
-        </p>
-        <h1 className="text-3xl font-semibold">{greeting}</h1>
-      </header>
+      {/* Mobile: nagłówek + lista wpisów (na desktopie lista jest w panelu bocznym). */}
+      <div className="lg:hidden">
+        <header className="mb-8">
+          <p className="flex flex-wrap items-center gap-2 text-sm uppercase tracking-wide text-muted-foreground">
+            <span>Mój Dziennik</span>
+            {today && (
+              <>
+                <span aria-hidden>·</span>
+                <span className="text-xs">{today}</span>
+              </>
+            )}
+          </p>
+          <h1 className="text-3xl font-semibold">{greeting}</h1>
+        </header>
 
-      {!loaded ? (
-        <p className="text-muted-foreground">Wczytywanie…</p>
-      ) : entries.length === 0 ? (
-        <div className="flex flex-col items-center gap-4 rounded-2xl border border-dashed border-border bg-card/50 px-6 py-16 text-center">
-          <BookOpen className="h-10 w-10 text-muted-foreground" />
-          <div>
-            <p className="text-lg font-medium">Brak wpisów</p>
-            <p className="text-sm text-muted-foreground">
-              Zacznij od zapisania przemyśleń z dzisiejszego dnia.
-            </p>
+        {!loaded ? (
+          <p className="text-muted-foreground">Wczytywanie…</p>
+        ) : entries.length === 0 ? (
+          <div className="flex flex-col items-center gap-4 rounded-2xl border border-dashed border-border bg-card/50 px-6 py-16 text-center">
+            <BookOpen className="h-10 w-10 text-muted-foreground" />
+            <div>
+              <p className="text-lg font-medium">Brak wpisów</p>
+              <p className="text-sm text-muted-foreground">
+                Zacznij od zapisania przemyśleń z dzisiejszego dnia.
+              </p>
+            </div>
           </div>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {entries.map((entry) => (
+              <EntryListItem
+                key={entry.id}
+                entry={entry}
+                onDelete={removeEntry}
+                onDragChange={setDragging}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Desktop: ekran powitalny w prawym panelu (lista jest w panelu bocznym). */}
+      <div className="hidden min-h-[60vh] flex-col items-center justify-center gap-3 text-center lg:flex">
+        <BookOpen className="h-12 w-12 text-muted-foreground" />
+        <div>
+          <p className="text-sm uppercase tracking-wide text-muted-foreground">
+            {today}
+            {time && (
+              <>
+                <span aria-hidden> · </span>
+                {time}
+              </>
+            )}
+          </p>
+          <h1 className="text-3xl font-semibold">{greeting}</h1>
         </div>
-      ) : (
-        <div className="flex flex-col gap-3">
-          {entries.map((entry) => (
-            <EntryListItem
-              key={entry.id}
-              entry={entry}
-              onDelete={removeEntry}
-              onDragChange={setDragging}
-            />
-          ))}
-        </div>
-      )}
+        <p className="max-w-sm text-muted-foreground">
+          Wybierz wpis z listy po lewej lub dodaj nowy.
+        </p>
+        <Link
+          href="/new"
+          className={cn(
+            buttonVariants({ size: "lg" }),
+            "mt-2 h-12 rounded-full px-6 text-base shadow-lg",
+          )}
+        >
+          <Plus className="h-5 w-5" />
+          Nowy wpis
+        </Link>
+      </div>
 
       <div
         className={cn(
-          "fixed inset-x-0 bottom-6 z-50 flex justify-center transition-opacity",
+          "fixed inset-x-0 bottom-6 z-50 flex justify-center transition-opacity lg:hidden",
           dragging && "pointer-events-none opacity-0",
         )}
       >
