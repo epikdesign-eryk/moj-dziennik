@@ -5,7 +5,7 @@ import { useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Trash2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { formatDate, moodEmoji, excerpt } from "@/lib/journal-utils";
+import { moodEmoji, moodLabel, excerpt } from "@/lib/journal-utils";
 import { cn } from "@/lib/utils";
 import type { JournalEntry } from "@/types/journal";
 
@@ -25,6 +25,9 @@ interface EntryListItemProps {
 
 export function EntryListItem({ entry, onDelete, onDragChange, active }: EntryListItemProps) {
   const preview = excerpt(entry.content);
+  const dateObj = new Date(entry.date);
+  const dayNum = dateObj.getDate();
+  const monthName = dateObj.toLocaleDateString("pl-PL", { month: "long" });
 
   const [dragging, setDragging] = useState(false);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
@@ -130,21 +133,28 @@ export function EntryListItem({ entry, onDelete, onDragChange, active }: EntryLi
         active && !floating && "bg-accent/50 ring-2 ring-primary",
       )}
     >
-      <span className="text-3xl leading-none" aria-hidden>
-        {moodEmoji(entry.mood)}
-      </span>
+      {/* Lewa kolumna: duża data (numer dnia + miesiąc pod spodem). */}
+      <div className="flex w-14 shrink-0 flex-col items-center text-center leading-none">
+        <span className="text-lg font-semibold">{dayNum}</span>
+        <span className="mt-1 text-xs capitalize text-muted-foreground">
+          {monthName}
+        </span>
+      </div>
+
+      {/* Pionowy dzielnik między datą a treścią. */}
+      <span className="w-px self-stretch bg-border" aria-hidden />
+
+      {/* Prawa kolumna: u góry mały mood, pod nim wycinek notatki. */}
       <div className="min-w-0 flex-1">
-        <p className="text-xs uppercase tracking-wide text-muted-foreground">
-          {formatDate(entry.date)}
+        <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <span className="text-base" aria-hidden>
+            {moodEmoji(entry.mood)}
+          </span>
+          {moodLabel(entry.mood)}
         </p>
-        <h3 className="truncate text-lg font-semibold">
-          {entry.title || "(bez tytułu)"}
-        </h3>
-        {preview && (
-          <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
-            {preview}
-          </p>
-        )}
+        <p className="mt-1.5 line-clamp-2 text-sm text-foreground">
+          {preview || "(pusty wpis)"}
+        </p>
       </div>
 
       {/* Czerwony overlay na całą kartę, gdy jest nad strefą usuwania. */}

@@ -1,6 +1,12 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { EntriesSidebar } from "@/components/entries-sidebar";
+import { AiBar } from "@/components/ai-bar";
+import { SelectedDayProvider } from "@/lib/selected-day";
+
+// Trasy renderowane bez powłoki master–detail (np. ekran logowania).
+const BARE_PATHS = ["/login"];
 
 /**
  * Powłoka aplikacji.
@@ -8,12 +14,21 @@ import { EntriesSidebar } from "@/components/entries-sidebar";
  * - lg+: układ dwukolumnowy master–detail — stały panel boczny z listą wpisów
  *   po lewej i zawartość aktywnej strony (podgląd/edycja/formularz) po prawej,
  *   każda kolumna z własnym scrollem.
+ * Pasek AI (AiBar) jest zaafiksowany na dole na obu szerokościach.
  */
 export function AppShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  if (BARE_PATHS.some((p) => pathname.startsWith(p))) {
+    return <>{children}</>;
+  }
+
   return (
-    <div className="lg:grid lg:h-screen lg:grid-cols-[22rem_1fr]">
-      <EntriesSidebar />
-      <div className="lg:h-screen lg:overflow-y-auto">{children}</div>
-    </div>
+    <SelectedDayProvider>
+      <div className="lg:grid lg:h-screen lg:grid-cols-[22rem_1fr]">
+        <EntriesSidebar />
+        <div className="lg:h-screen lg:overflow-y-auto">{children}</div>
+      </div>
+      <AiBar />
+    </SelectedDayProvider>
   );
 }

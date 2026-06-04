@@ -57,6 +57,48 @@ export function formatDateShort(iso: string): string {
   });
 }
 
+/** Lokalny klucz dnia w formacie `YYYY-MM-DD` (z Date lub ISO string). */
+export function toLocalYMD(input: Date | string): string {
+  const d = typeof input === "string" ? new Date(input) : input;
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+/** Czy wpis (ISO) należy do dnia oznaczonego kluczem `YYYY-MM-DD`. */
+export function isSameLocalDay(iso: string, ymd: string): boolean {
+  return toLocalYMD(iso) === ymd;
+}
+
+/**
+ * Okno dni do paska kalendarza — domyślnie 30 dni wstecz + dziś (dziś na końcu),
+ * tak by najnowszy dzień był po prawej (jak w Imperfect).
+ */
+export function buildDayRange(today: Date, back = 30, forward = 0): Date[] {
+  const days: Date[] = [];
+  for (let i = back; i > 0; i--) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+    days.push(d);
+  }
+  days.push(new Date(today));
+  for (let i = 1; i <= forward; i++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() + i);
+    days.push(d);
+  }
+  return days;
+}
+
+/** Etykiety kafelka paska dni: krótki dzień tygodnia (pl) + numer dnia. */
+export function dayStripLabels(date: Date): { weekday: string; day: string } {
+  return {
+    weekday: date.toLocaleDateString("pl-PL", { weekday: "short" }),
+    day: String(date.getDate()),
+  };
+}
+
 /** Zamienia HTML treści na czysty tekst i przycina do krótkiego fragmentu. */
 export function excerpt(html: string, maxLength = 140): string {
   const text =

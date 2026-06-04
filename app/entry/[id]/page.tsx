@@ -3,9 +3,8 @@
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Pencil, Trash2, Plus } from "lucide-react";
+import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -48,27 +47,30 @@ export default function EntryPage() {
     );
   }
 
-  function handleUpdate(draft: JournalEntryDraft) {
-    updateEntry(entry!.id, draft);
+  async function handleUpdate(draft: JournalEntryDraft) {
+    await updateEntry(entry!.id, draft);
     setEditing(false);
   }
 
-  function handleDelete() {
-    removeEntry(entry!.id);
+  async function handleDelete() {
+    await removeEntry(entry!.id);
     router.push("/");
   }
 
   return (
     <main className="mx-auto w-full max-w-2xl px-4 py-6">
       {/* Górny pasek: powrót po lewej, akcje (edycja/usuwanie) po prawej. */}
-      <div className="mb-10 flex items-center justify-between lg:justify-end">
-        <Link
-          href="/"
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground lg:hidden"
+      <div className="mb-10 flex items-center justify-between">
+        <Button
+          variant="ghost"
+          size="sm"
+          nativeButton={false}
+          render={<Link href="/" />}
+          className="text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" />
-          wróć
-        </Link>
+          Wróć
+        </Button>
 
         {!editing && (
           <div className="flex items-center gap-1">
@@ -129,9 +131,6 @@ export default function EntryPage() {
           <p className="text-xs uppercase tracking-wider text-muted-foreground">
             {formatDateLong(entry.date)}
           </p>
-          <h1 className="text-4xl font-semibold leading-tight">
-            {entry.title || "(bez tytułu)"}
-          </h1>
           <p className="flex items-center gap-2 text-sm text-muted-foreground">
             <span className="text-xl" aria-hidden>
               {moodEmoji(entry.mood)}
@@ -140,28 +139,10 @@ export default function EntryPage() {
           </p>
 
           <div
-            className="entry-content mt-4 text-base"
+            className="entry-content mt-2 text-base"
             dangerouslySetInnerHTML={{ __html: entry.content }}
           />
         </article>
-      )}
-
-      {/* Floating „Dodaj wpis" — tylko desktop i tylko w trybie podglądu,
-          by móc utworzyć nowy wpis nie wracając na stronę główną. */}
-      {!editing && (
-        <div className="fixed inset-x-0 bottom-6 z-50 hidden justify-center lg:flex">
-          <Link
-            href="/new"
-            aria-label="Dodaj wpis"
-            className={cn(
-              buttonVariants({ size: "lg" }),
-              "h-14 rounded-full px-6 text-base shadow-lg transition-all",
-            )}
-          >
-            <Plus className="h-5 w-5" />
-            Dodaj wpis
-          </Link>
-        </div>
       )}
     </main>
   );

@@ -2,54 +2,47 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
 import { EntryListItem } from "@/components/entry-list-item";
+import { LogoutButton } from "@/components/logout-button";
+import { DayStrip, filterByDay } from "@/components/day-strip";
 import { useEntries } from "@/lib/use-entries";
+import { useSelectedDay } from "@/lib/selected-day";
 
 /**
  * Stały lewy panel na desktopie (widok master–detail à la Apple Notes).
- * Reużywa kartek `EntryListItem`; aktywny wpis wyróżniany na podstawie ścieżki.
+ * U góry pasek dni, pod nim lista wpisów wybranego dnia. Dodawać można tylko
+ * do dnia dzisiejszego.
  */
 export function EntriesSidebar() {
   const { entries, loaded, removeEntry } = useEntries();
+  const { selectedDay, today } = useSelectedDay();
   const pathname = usePathname();
 
-  // Dzień i data — jak w nagłówku mobilnym; ustawiane po zamontowaniu.
-  const [today, setToday] = useState("");
-  useEffect(() => {
-    setToday(
-      new Date().toLocaleDateString("pl-PL", {
-        weekday: "long",
-        day: "numeric",
-        month: "long",
-      }),
-    );
-  }, []);
+  const dayEntries = filterByDay(entries, selectedDay);
+  const isToday = selectedDay !== "" && selectedDay === today;
 
   return (
     <aside className="hidden border-r border-border bg-sidebar lg:flex lg:h-screen lg:flex-col">
-      <header className="border-b border-border px-4 py-4">
+      <header className="border-b border-border px-3 py-3">
         <Link
           href="/"
-          className="inline-block text-base font-medium uppercase tracking-wide text-muted-foreground transition-colors hover:text-foreground"
+          className="mb-3 inline-block px-1 text-base font-medium uppercase tracking-wide text-muted-foreground transition-colors hover:text-foreground"
         >
           Mój Dziennik
         </Link>
-        {today && (
-          <p className="mt-0.5 text-xs uppercase tracking-wide text-muted-foreground">
-            {today}
-          </p>
-        )}
+        <DayStrip />
       </header>
 
       <div className="flex-1 overflow-y-auto px-3 py-3">
         {!loaded ? (
           <p className="px-2 py-4 text-sm text-muted-foreground">Wczytywanie…</p>
-        ) : entries.length === 0 ? (
-          <p className="px-2 py-4 text-sm text-muted-foreground">Brak wpisów</p>
+        ) : dayEntries.length === 0 ? (
+          <p className="px-2 py-4 text-sm text-muted-foreground">
+            {isToday ? "Brak wpisów — dodaj pierwszy po prawej." : "Brak wpisów tego dnia"}
+          </p>
         ) : (
           <div className="flex flex-col gap-3">
-            {entries.map((entry) => (
+            {dayEntries.map((entry) => (
               <EntryListItem
                 key={entry.id}
                 entry={entry}
@@ -60,6 +53,10 @@ export function EntriesSidebar() {
           </div>
         )}
       </div>
+
+      <footer className="border-t border-border px-3 py-3">
+        <LogoutButton />
+      </footer>
     </aside>
   );
 }

@@ -11,22 +11,26 @@ export default function NewEntryPage() {
   const router = useRouter();
   const { createEntry } = useEntries();
 
-  function handleSubmit(draft: JournalEntryDraft) {
-    const entry = createEntry(draft);
+  async function handleSubmit(draft: JournalEntryDraft) {
+    const entry = await createEntry(draft);
     router.push(`/entry/${entry.id}`);
   }
 
   return (
-    <main className="mx-auto w-full max-w-2xl px-4 py-10">
+    <main className="mx-auto w-full max-w-2xl px-4 py-8">
       <Link
         href="/"
-        className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+        className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground lg:hidden"
       >
         <ArrowLeft className="h-4 w-4" />
         Wróć do listy
       </Link>
-      <h1 className="mb-3 text-3xl font-semibold">Nowy wpis</h1>
-      <EntryForm onSubmit={handleSubmit} onCancel={() => router.push("/")} />
+      <EntryForm
+        onSubmit={handleSubmit}
+        onCancel={() => router.push("/")}
+        submitLabel="Zapisz wpis"
+        cancelLabel="Wróć do listy"
+      />
     </main>
   );
 }

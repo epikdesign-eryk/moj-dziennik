@@ -5,71 +5,78 @@ import { useState, useEffect } from "react";
 import { Plus, BookOpen } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { EntryListItem } from "@/components/entry-list-item";
+import { LogoutButton } from "@/components/logout-button";
+import { DayStrip, filterByDay } from "@/components/day-strip";
 import { useEntries } from "@/lib/use-entries";
+import { useSelectedDay } from "@/lib/selected-day";
 import { cn } from "@/lib/utils";
 
 export default function HomePage() {
   const { entries, loaded, removeEntry } = useEntries();
+  const { selectedDay, today } = useSelectedDay();
   const [dragging, setDragging] = useState(false);
-  const isEmpty = loaded && entries.length === 0;
 
-  // Dzisiejsza data, godzina i powitanie ustawiane po zamontowaniu (unika rozjazdu hydracji).
-  const [today, setToday] = useState("");
-  const [time, setTime] = useState("");
+  // Powitanie wg pory dnia (mobile + desktop empty state).
   const [greeting, setGreeting] = useState("Dzień dobry");
   useEffect(() => {
-    const update = () => {
-      const now = new Date();
-      setToday(
-        now.toLocaleDateString("pl-PL", {
-          weekday: "long",
-          day: "numeric",
-          month: "long",
-        }),
-      );
-      setTime(
-        now.toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" }),
-      );
-      const hour = now.getHours();
-      setGreeting(hour >= 18 || hour < 5 ? "Dobry wieczór" : "Dzień dobry");
-    };
-    update();
-    const id = window.setInterval(update, 60_000);
-    return () => window.clearInterval(id);
+    const hour = new Date().getHours();
+    setGreeting(hour >= 18 || hour < 5 ? "Dobry wieczór" : "Dzień dobry");
   }, []);
 
+  const dayEntries = filterByDay(entries, selectedDay);
+  const isToday = selectedDay !== "" && selectedDay === today;
+
   return (
-    <main className="mx-auto w-full max-w-2xl px-4 py-10 pb-28">
-      {/* Mobile: nagłówek + lista wpisów (na desktopie lista jest w panelu bocznym). */}
+    <main className="mx-auto w-full max-w-2xl px-4 py-8 pb-32">
+      {/* Mobile: nagłówek + pasek dni + lista (desktop ma to w panelu bocznym). */}
       <div className="lg:hidden">
-        <header className="mb-8">
-          <p className="flex flex-wrap items-center gap-2 text-sm uppercase tracking-wide text-muted-foreground">
-            <span>Mój Dziennik</span>
-            {today && (
-              <>
-                <span aria-hidden>·</span>
-                <span className="text-xs">{today}</span>
-              </>
-            )}
+        <header className="mb-5">
+          <p className="text-sm uppercase tracking-wide text-muted-foreground">
+            Mój Dziennik
           </p>
-          <h1 className="text-3xl font-semibold">{greeting}</h1>
+          <div className="flex items-end justify-between gap-3">
+            <h1 className="text-3xl font-semibold">{greeting}</h1>
+            <div className="w-auto">
+              <LogoutButton />
+            </div>
+          </div>
         </header>
+
+        <div className="mb-6">
+          <DayStrip />
+        </div>
 
         {!loaded ? (
           <p className="text-muted-foreground">Wczytywanie…</p>
-        ) : entries.length === 0 ? (
-          <div className="flex flex-col items-center gap-4 rounded-2xl border border-dashed border-border bg-card/50 px-6 py-16 text-center">
-            <BookOpen className="h-10 w-10 text-muted-foreground" />
-            <div>
-              <p className="text-lg font-medium">Brak wpisów</p>
-              <p className="text-sm text-muted-foreground">
-                Zacznij od zapisania przemyśleń z dzisiejszego dnia.
-              </p>
+        ) : dayEntries.length === 0 ? (
+          isToday ? (
+            <div className="flex flex-col items-center gap-4 rounded-2xl border border-dashed border-border bg-card/50 px-6 py-16 text-center">
+              <BookOpen className="h-10 w-10 text-muted-foreground" />
+              <div>
+                <p className="text-lg font-medium">Brak wpisów</p>
+                <p className="text-sm text-muted-foreground">
+                  Zacznij od zapisania przemyśleń z dzisiejszego dnia.
+                </p>
+              </div>
+              <Link
+                href="/new"
+                className={cn(
+                  buttonVariants({ size: "lg" }),
+                  "h-12 rounded-full px-6 text-base shadow-sm",
+                )}
+              >
+                <Plus className="h-5 w-5" />
+                Dodaj pierwszy wpis
+              </Link>
             </div>
-          </div>
+          ) : (
+            <p className="py-10 text-center text-muted-foreground">
+              Brak wpisów tego dnia.
+            </p>
+          )
         ) : (
           <div className="flex flex-col gap-3">
-            {entries.map((entry) => (
+            {dayEntries.map((entry) => (
               <EntryListItem
                 key={entry.id}
                 entry={entry}
@@ -77,6 +84,19 @@ export default function HomePage() {
                 onDragChange={setDragging}
               />
             ))}
+            {isToday && (
+              <Link
+                href="/new"
+                className={cn(
+                  buttonVariants({ variant: "outline" }),
+                  "w-full rounded-xl border-dashed",
+                  dragging && "pointer-events-none opacity-0",
+                )}
+              >
+                <Plus className="h-4 w-4" />
+                Dodaj wpis
+              </Link>
+            )}
           </div>
         )}
       </div>
@@ -84,52 +104,22 @@ export default function HomePage() {
       {/* Desktop: ekran powitalny w prawym panelu (lista jest w panelu bocznym). */}
       <div className="hidden min-h-[60vh] flex-col items-center justify-center gap-3 text-center lg:flex">
         <BookOpen className="h-12 w-12 text-muted-foreground" />
-        <div>
-          <p className="text-sm uppercase tracking-wide text-muted-foreground">
-            {today}
-            {time && (
-              <>
-                <span aria-hidden> · </span>
-                {time}
-              </>
-            )}
-          </p>
-          <h1 className="text-3xl font-semibold">{greeting}</h1>
-        </div>
+        <h1 className="text-3xl font-semibold">{greeting}</h1>
         <p className="max-w-sm text-muted-foreground">
           Wybierz wpis z listy po lewej lub dodaj nowy.
         </p>
-        <Link
-          href="/new"
-          className={cn(
-            buttonVariants({ size: "lg" }),
-            "mt-2 h-12 rounded-full px-6 text-base shadow-lg",
-          )}
-        >
-          <Plus className="h-5 w-5" />
-          Nowy wpis
-        </Link>
-      </div>
-
-      <div
-        className={cn(
-          "fixed inset-x-0 bottom-6 z-50 flex justify-center transition-opacity lg:hidden",
-          dragging && "pointer-events-none opacity-0",
+        {isToday && (
+          <Link
+            href="/new"
+            className={cn(
+              buttonVariants({ size: "lg" }),
+              "mt-2 h-12 rounded-full px-6 text-base shadow-sm",
+            )}
+          >
+            <Plus className="h-5 w-5" />
+            Dodaj wpis
+          </Link>
         )}
-      >
-        <Link
-          href="/new"
-          aria-label="Dodaj wpis"
-          className={cn(
-            buttonVariants({ size: "lg" }),
-            "h-14 rounded-full px-6 text-base shadow-lg transition-all",
-            isEmpty &&
-              "shadow-[0_0_11px_3px_rgba(234,160,60,0.3)] hover:shadow-[0_0_13px_3px_rgba(234,160,60,0.35)]",
-          )}
-        >
-          <Plus className="h-5 w-5" />
-          {isEmpty ? "Dodaj pierwszy wpis" : "Dodaj wpis"}
-        </Link>
       </div>
     </main>
   );

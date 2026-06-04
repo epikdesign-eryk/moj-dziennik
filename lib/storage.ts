@@ -1,52 +1,48 @@
-// Warstwa trwałego zapisu wpisów w localStorage przeglądarki.
-// Brak backendu (Etap 1) — wszystkie dane żyją lokalnie u użytkownika.
+// Warstwa trwałego zapisu wpisów — Supabase (Postgres + RLS).
+// Wcześniej (Etap 1) dane żyły w localStorage; teraz każdy wpis należy do
+// zalogowanego użytkownika i jest przechowywany w tabeli `entries`.
+//
+// Zachowujemy wzorzec współdzielonego store (subscribe/getSnapshot dla
+// useSyncExternalStore), więc panel boczny i widok szczegółów widzą zawsze ten
+// sam, aktualny stan. Zmieniło się źródło danych oraz to, że mutacje są async.
 
 import type { JournalEntry, JournalEntryDraft } from "@/types/journal";
+import { createClient } from "@/lib/supabase/client";
 
-const STORAGE_KEY = "moj-dziennik:entries";
-// Store: localStorage + subskrypcja (useSyncExternalStore).
+const supabase = createClient();
+const TABLE = "entries";
 
-/** Czy mamy dostęp do localStorage (zabezpieczenie przed SSR). */
-function isBrowser(): boolean {
-  return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
-}
+// Wiersz z bazy: `created_at` pełni rolę pola `date` w UI.
+// Kolumna `title` istnieje w bazie (z Etapu 1), ale UI z niej zrezygnowało —
+// nie czytamy jej, a przy zapisie wstawiamy "" (gdyby kolumna była NOT NULL).
+type EntryRow = {
+  id: string;
+  created_at: string;
+  content: string;
+  mood: JournalEntry["mood"];
+  image: string | null;
+};
 
-function readRaw(): JournalEntry[] {
-  if (!isBrowser()) return [];
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as JournalEntry[]) : [];
-  } catch {
-    // Uszkodzone dane — nie wywracamy aplikacji.
-    return [];
-  }
-}
+const SELECT = "id, created_at, content, mood, image";
 
-function writeRaw(entries: JournalEntry[]): void {
-  if (!isBrowser()) return;
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
-  notify();
-}
-
-/** Wszystkie wpisy, posortowane od najnowszego do najstarszego. */
-export function getAll(): JournalEntry[] {
-  return readRaw().sort((a, b) => b.date.localeCompare(a.date));
+function mapRow(row: EntryRow): JournalEntry {
+  return {
+    id: row.id,
+    date: row.created_at,
+    content: row.content,
+    mood: row.mood,
+    image: row.image,
+  };
 }
 
 // --- Współdzielony store dla useSyncExternalStore ---------------------------
-// Pojedyncze źródło prawdy dla wszystkich konsumentów (panel boczny + strony).
-// Migawka jest cache'owana, by zwracać stabilną referencję między zmianami —
-// inaczej useSyncExternalStore wpada w pętlę re-renderów.
 
 const listeners = new Set<() => void>();
 const EMPTY: JournalEntry[] = [];
-let snapshot: JournalEntry[] | null = null;
+let cache: JournalEntry[] = EMPTY;
 
-/** Powiadamia subskrybentów po każdej mutacji (wołane z writeRaw). */
-export function notify(): void {
-  snapshot = null; // unieważnij cache — przeliczy się przy najbliższym getSnapshot
+/** Powiadamia subskrybentów po każdej zmianie cache. */
+function notify(): void {
   for (const listener of listeners) listener();
 }
 
@@ -58,46 +54,82 @@ export function subscribe(listener: () => void): () => void {
   };
 }
 
-/** Aktualna migawka (cache'owana referencja) dla klienta. */
+/** Aktualna migawka (stabilna referencja) dla klienta. */
 export function getSnapshot(): JournalEntry[] {
-  if (snapshot === null) snapshot = getAll();
-  return snapshot;
+  return cache;
 }
 
-/** Stabilna, pusta migawka dla SSR (brak localStorage). */
+/** Stabilna, pusta migawka dla SSR. */
 export function getServerSnapshot(): JournalEntry[] {
   return EMPTY;
 }
 
-/** Pojedynczy wpis po id (lub `undefined`). */
-export function getById(id: string): JournalEntry | undefined {
-  return readRaw().find((e) => e.id === id);
+/** Pobiera wpisy zalogowanego użytkownika z bazy i aktualizuje cache. */
+export async function load(): Promise<void> {
+  const { data, error } = await supabase
+    .from(TABLE)
+    .select(SELECT)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    // Brak sesji / błąd — pokazujemy pustą listę zamiast wywracać aplikację.
+    cache = EMPTY;
+    notify();
+    return;
+  }
+
+  cache = (data as EntryRow[]).map(mapRow);
+  notify();
 }
 
-/** Tworzy nowy wpis, zapisuje i zwraca go. */
-export function create(draft: JournalEntryDraft): JournalEntry {
-  const entry: JournalEntry = {
-    id: crypto.randomUUID(),
-    date: new Date().toISOString(),
-    ...draft,
-  };
-  const entries = readRaw();
-  entries.push(entry);
-  writeRaw(entries);
+/** Czyści cache (np. po wylogowaniu). */
+export function clear(): void {
+  cache = EMPTY;
+  notify();
+}
+
+/** Tworzy nowy wpis, zapisuje w bazie i zwraca go. */
+export async function create(draft: JournalEntryDraft): Promise<JournalEntry> {
+  const { data, error } = await supabase
+    .from(TABLE)
+    // title="" — kolumna z Etapu 1 może być NOT NULL, a UI jej już nie używa.
+    .insert({ ...draft, title: "" })
+    .select(SELECT)
+    .single();
+
+  if (error) throw error;
+
+  const entry = mapRow(data as EntryRow);
+  cache = [entry, ...cache];
+  notify();
   return entry;
 }
 
-/** Aktualizuje istniejący wpis. Zwraca zaktualizowany wpis lub `undefined`. */
-export function update(id: string, draft: JournalEntryDraft): JournalEntry | undefined {
-  const entries = readRaw();
-  const idx = entries.findIndex((e) => e.id === id);
-  if (idx === -1) return undefined;
-  entries[idx] = { ...entries[idx], ...draft };
-  writeRaw(entries);
-  return entries[idx];
+/** Aktualizuje wpis. Zwraca zaktualizowany wpis lub `undefined`. */
+export async function update(
+  id: string,
+  draft: JournalEntryDraft,
+): Promise<JournalEntry | undefined> {
+  const { data, error } = await supabase
+    .from(TABLE)
+    .update({ ...draft, updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .select(SELECT)
+    .single();
+
+  if (error || !data) return undefined;
+
+  const entry = mapRow(data as EntryRow);
+  cache = cache.map((e) => (e.id === id ? entry : e));
+  notify();
+  return entry;
 }
 
 /** Usuwa wpis o podanym id. */
-export function remove(id: string): void {
-  writeRaw(readRaw().filter((e) => e.id !== id));
+export async function remove(id: string): Promise<void> {
+  const { error } = await supabase.from(TABLE).delete().eq("id", id);
+  if (error) throw error;
+
+  cache = cache.filter((e) => e.id !== id);
+  notify();
 }
