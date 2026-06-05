@@ -8,7 +8,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 // Ścieżki dostępne bez zalogowania.
-const PUBLIC_PATHS = ["/login"];
+const PUBLIC_PATHS = ["/login", "/docs"];
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -41,16 +41,20 @@ export async function updateSession(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
   const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
+  // Trasy API same pilnują autoryzacji (PAT lub cookie) i zwracają JSON 401 —
+  // nie przekierowujemy ich na /login, żeby nie psuć kontraktu API.
+  const isApi = pathname.startsWith("/api");
 
   // Brak sesji na chronionej trasie → na /login.
-  if (!user && !isPublic) {
+  if (!user && !isPublic && !isApi) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
   }
 
   // Zalogowany użytkownik na /login → na stronę główną.
-  if (user && isPublic) {
+  // (Dotyczy tylko ekranu logowania — /docs zostaje dostępne także po zalogowaniu.)
+  if (user && pathname.startsWith("/login")) {
     const url = request.nextUrl.clone();
     url.pathname = "/";
     return NextResponse.redirect(url);

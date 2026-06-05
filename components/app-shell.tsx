@@ -5,8 +5,8 @@ import { EntriesSidebar } from "@/components/entries-sidebar";
 import { AiBar } from "@/components/ai-bar";
 import { SelectedDayProvider } from "@/lib/selected-day";
 
-// Trasy renderowane bez powłoki master–detail (np. ekran logowania).
-const BARE_PATHS = ["/login"];
+// Trasy renderowane bez powłoki master–detail (np. ekran logowania, dokumentacja).
+const BARE_PATHS = ["/login", "/docs"];
 
 /**
  * Powłoka aplikacji.
