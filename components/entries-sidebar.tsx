@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { EntryListItem } from "@/components/entry-list-item";
 import { LogoutButton } from "@/components/logout-button";
 import { DayStrip, filterByDay } from "@/components/day-strip";
 import { useEntries } from "@/lib/use-entries";
 import { useSelectedDay } from "@/lib/selected-day";
+import { createClient } from "@/lib/supabase/client";
 
 /**
  * Stały lewy panel na desktopie (widok master–detail à la Apple Notes).
@@ -17,6 +19,7 @@ export function EntriesSidebar() {
   const { entries, loaded, removeEntry } = useEntries();
   const { selectedDay, today } = useSelectedDay();
   const pathname = usePathname();
+  const userEmail = useUserEmail();
 
   const dayEntries = filterByDay(entries, selectedDay);
   const isToday = selectedDay !== "" && selectedDay === today;
@@ -54,9 +57,42 @@ export function EntriesSidebar() {
         )}
       </div>
 
-      <footer className="border-t border-border px-3 py-3">
+      <footer className="flex items-center justify-between gap-2 border-t border-border px-3 py-3">
+        <span
+          className="min-w-0 flex-1 truncate text-sm text-muted-foreground"
+          title={userEmail ?? undefined}
+        >
+          {userEmail ?? ""}
+        </span>
         <LogoutButton />
       </footer>
     </aside>
   );
+}
+
+/** Pobiera e-mail aktualnie zalogowanego użytkownika (po stronie klienta). */
+function useUserEmail(): string | null {
+  const [email, setEmail] = useState<string | null>(null);
+
+  useEffect(() => {
+    const supabase = createClient();
+    let active = true;
+
+    supabase.auth.getUser().then(({ data }) => {
+      if (active) setEmail(data.user?.email ?? null);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setEmail(session?.user?.email ?? null);
+    });
+
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  return email;
 }

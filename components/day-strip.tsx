@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef } from "react";
+import { useDragScroll } from "@/lib/use-drag-scroll";
 import { cn } from "@/lib/utils";
 import {
   buildDayRange,
@@ -37,6 +38,9 @@ export function DayStrip() {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const activeRef = useRef<HTMLButtonElement | null>(null);
 
+  // Na desktopie: scroll kółkiem (pionowy → poziomy) i przeciąganie myszką.
+  const isDragging = useDragScroll(scrollRef);
+
   // Po zamontowaniu / zmianie wyboru dosuń aktywny kafelek do widoku.
   useEffect(() => {
     activeRef.current?.scrollIntoView({
@@ -49,7 +53,12 @@ export function DayStrip() {
   return (
     <div
       ref={scrollRef}
-      className="no-scrollbar flex gap-3 overflow-x-auto px-0.5 py-2"
+      className={cn(
+        "no-scrollbar flex gap-3 overflow-x-auto px-0.5 py-2",
+        // Na desktopie pokazujemy „chwytkę"; w trakcie ciągnięcia — zaciśniętą dłoń.
+        "lg:cursor-grab",
+        isDragging && "lg:cursor-grabbing lg:select-none",
+      )}
     >
       {days.map((date, i) => {
         const ymd = toLocalYMD(date);
