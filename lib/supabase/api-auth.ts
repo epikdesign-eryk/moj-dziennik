@@ -31,6 +31,33 @@ function bearer(request: Request): string | null {
 }
 
 /**
+ * Sprawdza Personal Access Token i zwraca `user_id` właściciela (albo `null`).
+ * Wspólne dla REST (getApiClient) i serwera MCP (verifyToken).
+ */
+export async function resolveUserIdFromToken(
+  token: string,
+): Promise<string | null> {
+  if (!token.startsWith(PAT_PREFIX)) return null;
+
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("api_tokens")
+    .select("id, user_id")
+    .eq("token_hash", hashToken(token))
+    .maybeSingle();
+
+  if (error || !data) return null;
+
+  // Ostatnie użycie — best-effort, nie blokuje.
+  void admin
+    .from("api_tokens")
+    .update({ last_used_at: new Date().toISOString() })
+    .eq("id", data.id);
+
+  return data.user_id as string;
+}
+
+/**
  * Zwraca uwierzytelnionego użytkownika i klienta Supabase, albo `null`.
  * `null` → handler powinien odpowiedzieć 401.
  */
@@ -39,22 +66,9 @@ export async function getApiClient(request: Request): Promise<ApiAuth | null> {
 
   // --- Ścieżka PAT ---------------------------------------------------------
   if (token && token.startsWith(PAT_PREFIX)) {
-    const admin = createAdminClient();
-    const { data, error } = await admin
-      .from("api_tokens")
-      .select("id, user_id")
-      .eq("token_hash", hashToken(token))
-      .maybeSingle();
-
-    if (error || !data) return null;
-
-    // Ostatnie użycie — best-effort, nie blokuje odpowiedzi.
-    void admin
-      .from("api_tokens")
-      .update({ last_used_at: new Date().toISOString() })
-      .eq("id", data.id);
-
-    return { supabase: admin, userId: data.user_id as string };
+    const userId = await resolveUserIdFromToken(token);
+    if (!userId) return null;
+    return { supabase: createAdminClient(), userId };
   }
 
   // --- Ścieżka sesji (ciasteczka) -----------------------------------------

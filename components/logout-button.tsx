@@ -45,7 +45,7 @@ export function LogoutButton() {
         <MoreVertical className="h-4 w-4" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-40">
-        <DropdownMenuItem onClick={() => router.push("/docs")}>
+        <DropdownMenuItem onClick={() => router.push("/docs/api")}>
           <BookOpen className="h-4 w-4" />
           Docs
         </DropdownMenuItem>

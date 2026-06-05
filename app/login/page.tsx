@@ -44,7 +44,7 @@ export default function LoginPage() {
   return (
     <main className="relative flex min-h-screen items-center justify-center px-4">
       <Link
-        href="/docs"
+        href="/docs/api"
         className="absolute bottom-4 right-4 inline-flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
       >
         <BookOpen className="h-3.5 w-3.5" />
