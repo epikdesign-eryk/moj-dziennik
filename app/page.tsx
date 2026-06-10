@@ -6,6 +6,7 @@ import { Plus, BookOpen } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { EntryListItem } from "@/components/entry-list-item";
 import { LogoutButton } from "@/components/logout-button";
+import { CalendarJump } from "@/components/calendar-jump";
 import { DayStrip, filterByDay } from "@/components/day-strip";
 import { useEntries } from "@/lib/use-entries";
 import { useSelectedDay } from "@/lib/selected-day";
@@ -36,7 +37,8 @@ export default function HomePage() {
           </p>
           <div className="flex items-end justify-between gap-3">
             <h1 className="text-3xl font-semibold">{greeting}</h1>
-            <div className="w-auto">
+            <div className="flex w-auto items-center gap-1">
+              <CalendarJump />
               <LogoutButton />
             </div>
           </div>

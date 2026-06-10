@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { EntryListItem } from "@/components/entry-list-item";
 import { LogoutButton } from "@/components/logout-button";
+import { CalendarJump } from "@/components/calendar-jump";
 import { DayStrip, filterByDay } from "@/components/day-strip";
 import { useEntries } from "@/lib/use-entries";
 import { useSelectedDay } from "@/lib/selected-day";
@@ -27,13 +28,16 @@ export function EntriesSidebar() {
   return (
     <aside className="hidden border-r border-border bg-sidebar lg:flex lg:h-screen lg:flex-col">
       <header className="border-b border-border px-3 py-3">
-        <Link
-          href="/"
-          className="mb-3 inline-block px-1 text-base font-medium uppercase tracking-wide text-muted-foreground transition-colors hover:text-foreground"
-        >
-          Mój Dziennik
-        </Link>
-        <DayStrip />
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <Link
+            href="/"
+            className="inline-block px-1 text-base font-medium uppercase tracking-wide text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Mój Dziennik
+          </Link>
+          <CalendarJump />
+        </div>
+        <DayStrip surface="sidebar" />
       </header>
 
       <div className="flex-1 overflow-y-auto px-3 py-3">

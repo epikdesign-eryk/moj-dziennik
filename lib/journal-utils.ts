@@ -72,10 +72,10 @@ export function isSameLocalDay(iso: string, ymd: string): boolean {
 }
 
 /**
- * Okno dni do paska kalendarza — domyślnie 30 dni wstecz + dziś (dziś na końcu),
+ * Okno dni do paska kalendarza — domyślnie 120 dni wstecz + dziś (dziś na końcu),
  * tak by najnowszy dzień był po prawej (jak w Imperfect).
  */
-export function buildDayRange(today: Date, back = 30, forward = 0): Date[] {
+export function buildDayRange(today: Date, back = 120, forward = 0): Date[] {
   const days: Date[] = [];
   for (let i = back; i > 0; i--) {
     const d = new Date(today);
