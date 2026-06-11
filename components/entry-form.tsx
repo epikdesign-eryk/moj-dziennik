@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { MoodPicker } from "@/components/mood-picker";
 import { EntryEditor } from "@/components/entry-editor";
-import { ImagePlaceholderButton } from "@/components/image-placeholder-button";
+import { ImageUpload } from "@/components/image-upload";
 import { formatDate } from "@/lib/journal-utils";
 import type { JournalEntryDraft, Mood } from "@/types/journal";
 
@@ -31,6 +31,7 @@ export function EntryForm({
 }: EntryFormProps) {
   const [content, setContent] = useState(initial?.content ?? "");
   const [mood, setMood] = useState<Mood | null>(initial?.mood ?? null);
+  const [images, setImages] = useState<string[]>(initial?.images ?? []);
   const [error, setError] = useState<string | null>(null);
 
   const displayDate = formatDate(date ?? new Date().toISOString());
@@ -46,7 +47,7 @@ export function EntryForm({
       setError("Wybierz swój nastrój.");
       return;
     }
-    onSubmit({ content, mood, image: initial?.image ?? null });
+    onSubmit({ content, mood, images });
   }
 
   return (
@@ -71,8 +72,8 @@ export function EntryForm({
       </div>
 
       <div className="flex flex-col gap-2">
-        <Label>Zdjęcie</Label>
-        <ImagePlaceholderButton />
+        <Label>Zdjęcia</Label>
+        <ImageUpload value={images} onChange={setImages} />
       </div>
 
       {error && <p className="text-sm text-destructive">{error}</p>}

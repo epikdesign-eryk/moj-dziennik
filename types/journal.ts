@@ -14,15 +14,16 @@ export interface JournalEntry {
   /** Wybrany nastrój. */
   mood: Mood;
   /**
-   * Zdjęcie dołączone do wpisu — zarezerwowane na kolejny etap.
-   * Na teraz zawsze `null` (UI ma jedynie nieaktywny placeholder).
+   * Zdjęcia dołączone do wpisu — ścieżki obiektów w prywatnym buckecie
+   * Storage `entry-images` (np. `"<uid>/ab12.jpg"`), nie gotowe URL-e.
+   * Do wyświetlenia generujemy podpisane URL-e. Pusta lista = brak zdjęć.
    */
-  image: string | null;
+  images: string[];
 }
 
 /** Dane formularza przy tworzeniu / edycji wpisu (bez pól generowanych). */
 export interface JournalEntryDraft {
   content: string;
   mood: Mood;
-  image: string | null;
+  images: string[];
 }

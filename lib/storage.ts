@@ -8,6 +8,7 @@
 
 import type { JournalEntry, JournalEntryDraft } from "@/types/journal";
 import { createClient } from "@/lib/supabase/client";
+import { removeEntryImages } from "@/lib/entry-images";
 
 const supabase = createClient();
 const TABLE = "entries";
@@ -20,10 +21,10 @@ type EntryRow = {
   created_at: string;
   content: string;
   mood: JournalEntry["mood"];
-  image: string | null;
+  images: string[] | null;
 };
 
-const SELECT = "id, created_at, content, mood, image";
+const SELECT = "id, created_at, content, mood, images";
 
 function mapRow(row: EntryRow): JournalEntry {
   return {
@@ -31,7 +32,7 @@ function mapRow(row: EntryRow): JournalEntry {
     date: row.created_at,
     content: row.content,
     mood: row.mood,
-    image: row.image,
+    images: row.images ?? [],
   };
 }
 
@@ -125,8 +126,18 @@ export async function update(
   return entry;
 }
 
-/** Usuwa wpis o podanym id. */
+/** Usuwa wpis o podanym id oraz powiązane pliki zdjęć z bucketa. */
 export async function remove(id: string): Promise<void> {
+  // Najpierw skasuj pliki (best-effort) — błąd sprzątania nie blokuje usunięcia.
+  const paths = cache.find((e) => e.id === id)?.images ?? [];
+  if (paths.length > 0) {
+    try {
+      await removeEntryImages(paths);
+    } catch {
+      /* ignore — pliki-sieroty można posprzątać później */
+    }
+  }
+
   const { error } = await supabase.from(TABLE).delete().eq("id", id);
   if (error) throw error;
 

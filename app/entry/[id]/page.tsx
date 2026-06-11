@@ -15,6 +15,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { EntryForm } from "@/components/entry-form";
+import { ImageGrid } from "@/components/image-grid";
 import { useEntries } from "@/lib/use-entries";
 import { formatDateLong, moodEmoji, moodLabel } from "@/lib/journal-utils";
 import type { JournalEntryDraft } from "@/types/journal";
@@ -142,6 +143,8 @@ export default function EntryPage() {
             className="entry-content mt-2 text-base"
             dangerouslySetInnerHTML={{ __html: entry.content }}
           />
+
+          {entry.images.length > 0 && <ImageGrid paths={entry.images} />}
         </article>
       )}
     </main>
