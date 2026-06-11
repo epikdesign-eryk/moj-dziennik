@@ -7,7 +7,9 @@
 //  - pełną historię / wyszukiwanie / oś nastroju agent dociąga sam przez
 //    narzędzia (function calling) — gdy pytanie jest ogólne.
 
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ChatMessage, ToolCall, ToolDef } from "@/lib/grok";
+import { hybridSearchEntries } from "@/lib/hybrid-search";
 
 /** Wpis dziennika w postaci użytecznej dla agenta (HTML już oczyszczony). */
 export interface EntryForAgent {
@@ -103,17 +105,49 @@ export function buildFocusedContext(
           .map((e) => `- samopoczucie: ${moodWord(e.mood)}; treść: ${e.text || "(pusta)"}`)
           .join("\n");
 
-  // Lekki zarys ostatnich dni — sygnał, jak ostatnio się miewa, bez pełnych treści.
+  // Stały kontekst czasowy: 7 najnowszych wpisów z PEŁNĄ treścią — zawsze w promptcie,
+  // niezależnie od zapytania. Dzięki temu agent rozumie świeże odniesienia (np. "wczoraj
+  // pokłóciłem się z Zolą") bez sięgania po narzędzia. Pomijamy wpisy otwartego dnia,
+  // bo te są już wyżej.
+  const recent = entries
+    .filter((e) => e.day !== focusedDay)
+    .slice(0, 7)
+    .map((e) => `- ${e.day}; samopoczucie: ${moodWord(e.mood)}; treść: ${e.text || "(pusta)"}`)
+    .join("\n");
+
+  const recentBlock = recent
+    ? `\n\nOstatnie wpisy (najnowsze pierwsze, pełna treść):\n${recent}`
+    : "";
+
+  // Lekki zarys nastroju z dalszej przeszłości — sygnał trendu, bez pełnych treści.
   const timeline = entries
     .slice(0, 14)
     .map((e) => `${e.day}: ${moodWord(e.mood)}`)
     .join("; ");
 
   const overview = timeline
-    ? `\n\nJak ostatnio się miewał (najnowsze pierwsze): ${timeline}. Po pełne treści sięgnij narzędziami. Pamiętaj: opisuj to słowami, nie liczbami.`
+    ? `\n\nJak ostatnio się miewał (najnowsze pierwsze): ${timeline}. Po starsze lub tematycznie dobrane treści sięgnij narzędziami. Pamiętaj: opisuj to słowami, nie liczbami.`
     : "";
 
-  return `=== KONTEKST DZIENNIKA ===\n${focused}${overview}`;
+  return `=== KONTEKST DZIENNIKA ===\n${focused}${recentBlock}${overview}`;
+}
+
+/**
+ * Buduje blok z wpisami pobranymi przez wyszukiwanie hybrydowe (RAG) — wstrzykiwany
+ * ZAWSZE przed odpowiedzią, niezależnie od stałego kontekstu ostatnich dni.
+ */
+export function buildRetrievedContext(entries: EntryForAgent[]): string {
+  if (entries.length === 0) {
+    return `=== PASUJĄCE WPISY (wyszukiwanie hybrydowe) ===\nNie znaleziono wpisów wyraźnie pasujących do tego pytania.`;
+  }
+  const list = entries
+    .map((e) => `- ${e.day}; samopoczucie: ${moodWord(e.mood)}; treść: ${e.text || "(pusta)"}`)
+    .join("\n");
+  return (
+    `=== PASUJĄCE WPISY (wyszukiwanie hybrydowe — najtrafniejsze dla tego pytania) ===\n` +
+    `Wpisy z CAŁEJ historii najlepiej pasujące do bieżącego pytania (znaczeniowo i po słowach). ` +
+    `Opieraj odpowiedź przede wszystkim na nich; opisuj samopoczucie słowami, nie liczbami:\n${list}`
+  );
 }
 
 // --- Narzędzia (function calling) -------------------------------------------
@@ -142,11 +176,14 @@ export const TOOLS: ToolDef[] = [
     function: {
       name: "search_entries",
       description:
-        "Wyszukuje wpisy zawierające podany tekst (po treści). Użyj, gdy szukasz konkretnego tematu, osoby lub zdarzenia.",
+        "Wyszukiwanie hybrydowe wpisów: łączy dopasowanie ZNACZENIOWE (semantyczne — łapie synonimy i bliskie tematy, np. „smutek\" znajdzie też „melancholię\" czy „dół\") z dopasowaniem po SŁOWACH KLUCZOWYCH. Użyj, gdy szukasz konkretnego tematu, emocji, osoby, zdarzenia lub wzorca (np. „kiedy bywa mi smutno\", „co mnie ostatnio stresuje\"). Zwraca najtrafniejsze wpisy z całej historii.",
       parameters: {
         type: "object",
         properties: {
-          query: { type: "string", description: "Szukana fraza." },
+          query: {
+            type: "string",
+            description: "Opis tego, czego szukasz — temat, emocja lub fraza.",
+          },
         },
         required: ["query"],
       },
@@ -154,8 +191,19 @@ export const TOOLS: ToolDef[] = [
   },
 ];
 
-/** Wykonuje pojedyncze wywołanie narzędzia na liście wpisów (w pamięci). */
-export function runTool(call: ToolCall, entries: EntryForAgent[]): string {
+/** Kontekst potrzebny narzędziom: wpisy w pamięci + dostęp do bazy dla hybrydy. */
+export interface ToolContext {
+  entries: EntryForAgent[];
+  supabase: SupabaseClient;
+  userId: string;
+}
+
+/**
+ * Wykonuje pojedyncze wywołanie narzędzia. Większość narzędzi działa na wpisach
+ * w pamięci; search_entries woła wyszukiwanie hybrydowe (wektor + full-text) w bazie.
+ */
+export async function runTool(call: ToolCall, ctx: ToolContext): Promise<string> {
+  const { entries } = ctx;
   const name = call.function.name;
   let args: Record<string, unknown> = {};
   try {
@@ -180,10 +228,8 @@ export function runTool(call: ToolCall, entries: EntryForAgent[]): string {
         })),
       });
     case "search_entries": {
-      const q = String(args.query ?? "").toLowerCase();
-      const hits = q
-        ? entries.filter((e) => e.text.toLowerCase().includes(q))
-        : [];
+      const q = String(args.query ?? "");
+      const hits = await hybridSearchEntries(ctx.supabase, ctx.userId, q);
       return JSON.stringify({
         wskazowka: "Opisuj samopoczucie słowami, nie liczbami.",
         wpisy: hits.map((e) => ({

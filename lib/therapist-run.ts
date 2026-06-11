@@ -13,11 +13,13 @@ import {
   CRISIS_PROMPT,
   TOOLS,
   buildFocusedContext,
+  buildRetrievedContext,
   detectsCrisis,
   runTool,
   hasToolCalls,
 } from "@/lib/therapist";
 import { loadEntriesForUser } from "@/lib/journal-server";
+import { hybridSearchEntries } from "@/lib/hybrid-search";
 
 const MAX_TOOL_ROUNDS = 4;
 
@@ -32,8 +34,10 @@ export async function askTherapist(
   day: string,
   message: string,
 ): Promise<string> {
-  // 1. Historia wątku tego dnia + wpisy użytkownika (kontekst).
-  const [{ data: history }, entries] = await Promise.all([
+  // 1. Historia wątku tego dnia + wpisy użytkownika (kontekst) + RAG: zawsze
+  //    najpierw przeszukujemy bazę hybrydowo pytaniem użytkownika i pobieramy
+  //    najtrafniejsze wpisy, by odpowiedź opierała się na nich (wzorzec RAG).
+  const [{ data: history }, entries, retrieved] = await Promise.all([
     supabase
       .from("chat_messages")
       .select("role, content")
@@ -41,14 +45,16 @@ export async function askTherapist(
       .eq("day", day)
       .order("created_at", { ascending: true }),
     loadEntriesForUser(supabase, userId),
+    hybridSearchEntries(supabase, userId, message),
   ]);
 
-  // 2. Złóż wiadomości dla modelu.
+  // 2. Złóż wiadomości dla modelu: stały kontekst ostatnich dni + pobrane wpisy (RAG).
   const crisis = detectsCrisis(message);
   const systemContent =
     SYSTEM_PROMPT +
     (crisis ? `\n\n${CRISIS_PROMPT}` : "") +
-    `\n\n${buildFocusedContext(day, entries)}`;
+    `\n\n${buildFocusedContext(day, entries)}` +
+    `\n\n${buildRetrievedContext(retrieved)}`;
 
   const messages: ChatMessage[] = [
     { role: "system", content: systemContent },
@@ -71,7 +77,7 @@ export async function askTherapist(
         messages.push({
           role: "tool",
           tool_call_id: call.id,
-          content: runTool(call, entries),
+          content: await runTool(call, { entries, supabase, userId }),
         });
       }
       continue;
