@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import DOMPurify from "isomorphic-dompurify";
 import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -141,7 +142,9 @@ export default function EntryPage() {
 
           <div
             className="entry-content mt-2 text-base"
-            dangerouslySetInnerHTML={{ __html: entry.content }}
+            dangerouslySetInnerHTML={{
+              __html: DOMPurify.sanitize(entry.content),
+            }}
           />
 
           {entry.images.length > 0 && <ImageGrid paths={entry.images} />}

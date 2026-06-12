@@ -8,6 +8,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { askTherapist } from "@/lib/therapist-run";
+import { ApiError } from "@/lib/journal-actions";
 
 // Wymusza dynamiczne wykonanie (sesja z ciasteczek) — bez prerenderu.
 export const dynamic = "force-dynamic";
@@ -74,6 +75,9 @@ export async function POST(request: NextRequest) {
     const reply = await askTherapist(supabase, user.id, day, message);
     return NextResponse.json({ reply });
   } catch (err) {
+    if (err instanceof ApiError) {
+      return NextResponse.json({ error: err.message }, { status: err.status });
+    }
     console.error("Grok error:", err);
     return NextResponse.json(
       { error: "Agent jest chwilowo niedostępny. Spróbuj ponownie." },

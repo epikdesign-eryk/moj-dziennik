@@ -9,6 +9,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getApiClient } from "@/lib/supabase/api-auth";
 import { askTherapist } from "@/lib/therapist-run";
 import { todayWarsaw } from "@/lib/journal-server";
+import { ApiError } from "@/lib/journal-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -47,6 +48,9 @@ export async function POST(request: NextRequest) {
     const answer = await askTherapist(auth.supabase, auth.userId, date, question);
     return NextResponse.json({ answer });
   } catch (err) {
+    if (err instanceof ApiError) {
+      return NextResponse.json({ error: err.message }, { status: err.status });
+    }
     console.error("Grok error:", err);
     return NextResponse.json(
       { error: "Agent jest chwilowo niedostępny. Spróbuj ponownie." },

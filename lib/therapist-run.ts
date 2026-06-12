@@ -20,8 +20,46 @@ import {
 } from "@/lib/therapist";
 import { loadEntriesForUser } from "@/lib/journal-server";
 import { hybridSearchEntries } from "@/lib/hybrid-search";
+import { ApiError } from "@/lib/journal-actions";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 const MAX_TOOL_ROUNDS = 4;
+
+// Limit wywołań AI per użytkownik (płatny model + embeddingi). Wspólny dla
+// czatu w aplikacji, publicznego API i MCP — wszystkie idą przez askTherapist.
+const RL_PER_MINUTE = 6;
+const RL_PER_DAY = 80;
+
+/**
+ * Sprawdza limit zapytań AI dla użytkownika (atomowo, w bazie). Po przekroczeniu
+ * rzuca ApiError(429), zanim wykonamy jakiekolwiek płatne wywołanie modelu.
+ *
+ * Licznik wołamy ZAWSZE przez service-role (createAdminClient) — funkcja RPC nie
+ * jest dostępna roli `authenticated`, więc zalogowany user nie wywoła jej sam z
+ * cudzym user_id. Działa identycznie dla ścieżki cookie i PAT/MCP.
+ */
+async function enforceAiRateLimit(userId: string): Promise<void> {
+  const { data, error } = await createAdminClient().rpc("check_ai_rate_limit", {
+    p_user_id: userId,
+    p_max_per_min: RL_PER_MINUTE,
+    p_max_per_day: RL_PER_DAY,
+  });
+
+  // Fail-open: błąd limitera nie może zablokować legalnego ruchu.
+  if (error) {
+    console.error("check_ai_rate_limit:", error);
+    return;
+  }
+
+  const row = Array.isArray(data) ? data[0] : data;
+  if (row && row.allowed === false) {
+    const wait = Math.max(1, Number(row.retry_after) || 60);
+    throw new ApiError(
+      429,
+      `Za dużo zapytań do agenta. Spróbuj ponownie za ${wait} s.`,
+    );
+  }
+}
 
 /**
  * Zadaje pytanie agentowi w kontekście dnia `day` (YYYY-MM-DD) i zwraca odpowiedź.
@@ -34,6 +72,9 @@ export async function askTherapist(
   day: string,
   message: string,
 ): Promise<string> {
+  // 0. Limit zapytań AI — zanim cokolwiek zapłacimy (model + embeddingi).
+  await enforceAiRateLimit(userId);
+
   // 1. Historia wątku tego dnia + wpisy użytkownika (kontekst) + RAG: zawsze
   //    najpierw przeszukujemy bazę hybrydowo pytaniem użytkownika i pobieramy
   //    najtrafniejsze wpisy, by odpowiedź opierała się na nich (wzorzec RAG).
