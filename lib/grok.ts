@@ -6,6 +6,7 @@
 // dokumentacji xAI. Domyślne wartości można nadpisać zmiennymi środowiskowymi.
 
 const XAI_URL = "https://api.x.ai/v1/chat/completions";
+const XAI_STT_URL = "https://api.x.ai/v1/stt";
 const DEFAULT_MODEL = process.env.XAI_MODEL ?? "grok-4-1-fast-non-reasoning";
 
 export type ChatRole = "system" | "user" | "assistant" | "tool";
@@ -75,4 +76,47 @@ export async function grokChat(opts: {
   const message = data.choices?.[0]?.message;
   if (!message) throw new Error("Grok: pusta odpowiedź.");
   return message;
+}
+
+interface SttResponse {
+  text?: string;
+  language?: string;
+  duration?: number;
+}
+
+/**
+ * Transkrypcja nagrania głosowego przez xAI STT (POST /v1/stt, multipart).
+ * Zwraca rozpoznany tekst. Używane WYŁĄCZNIE po stronie serwera.
+ * Domyślnie wskazówka językowa "pl" — wpisy dziennika są po polsku.
+ */
+export async function grokTranscribe(opts: {
+  file: Blob;
+  filename?: string;
+  language?: string;
+  signal?: AbortSignal;
+}): Promise<string> {
+  const apiKey = process.env.XAI_API_KEY;
+  if (!apiKey) {
+    throw new Error("Brak XAI_API_KEY w środowisku.");
+  }
+
+  const form = new FormData();
+  if (opts.language) form.append("language", opts.language);
+  // Pole `file` musi iść po pozostałych polach (wymóg API xAI).
+  form.append("file", opts.file, opts.filename ?? "audio.webm");
+
+  const res = await fetch(XAI_STT_URL, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}` },
+    body: form,
+    signal: opts.signal,
+  });
+
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    throw new Error(`xAI STT ${res.status}: ${detail.slice(0, 500)}`);
+  }
+
+  const data = (await res.json()) as SttResponse;
+  return (data.text ?? "").trim();
 }

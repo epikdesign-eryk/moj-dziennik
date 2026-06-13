@@ -5,7 +5,8 @@
       "Bash(gh --version)",
       "Bash(git config *)",
       "Bash(git -C \"C:\\\\Users\\\\eryk\\\\Desktop\\\\week-1\" status)",
-      "mcp__245a0235-8035-4826-aa0f-e656d8e4f62c__execute_sql"
+      "mcp__245a0235-8035-4826-aa0f-e656d8e4f62c__execute_sql",
+      "WebSearch"
     ]
   }
 }

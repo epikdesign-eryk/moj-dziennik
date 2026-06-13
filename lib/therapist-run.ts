@@ -38,7 +38,7 @@ const RL_PER_DAY = 80;
  * jest dostępna roli `authenticated`, więc zalogowany user nie wywoła jej sam z
  * cudzym user_id. Działa identycznie dla ścieżki cookie i PAT/MCP.
  */
-async function enforceAiRateLimit(userId: string): Promise<void> {
+export async function enforceAiRateLimit(userId: string): Promise<void> {
   const { data, error } = await createAdminClient().rpc("check_ai_rate_limit", {
     p_user_id: userId,
     p_max_per_min: RL_PER_MINUTE,
