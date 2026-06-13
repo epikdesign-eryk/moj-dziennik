@@ -4,6 +4,7 @@ import { useEditor, EditorContent, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { useEffect, useRef, useState } from "react";
 import { Mic, Square, Loader2 } from "lucide-react";
+import { VoiceRecorder } from "@/lib/voice-recorder";
 import { cn } from "@/lib/utils";
 
 interface EntryEditorProps {
@@ -90,22 +91,18 @@ function VoiceButton({ editor }: { editor: Editor }) {
   const [elapsed, setElapsed] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
-  const recorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-  const streamRef = useRef<MediaStream | null>(null);
+  const recorderRef = useRef<VoiceRecorder | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Sprzątanie, gdy komponent zniknie w trakcie nagrywania.
   useEffect(() => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
-      streamRef.current?.getTracks().forEach((t) => t.stop());
+      recorderRef.current?.stop().catch(() => {});
     };
   }, []);
 
-  function stopStream() {
-    streamRef.current?.getTracks().forEach((t) => t.stop());
-    streamRef.current = null;
+  function clearTimer() {
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
@@ -119,46 +116,39 @@ function VoiceButton({ editor }: { editor: Editor }) {
       return;
     }
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      streamRef.current = stream;
-      chunksRef.current = [];
-
-      const recorder = new MediaRecorder(stream);
+      const recorder = new VoiceRecorder();
+      await recorder.start();
       recorderRef.current = recorder;
-      recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) chunksRef.current.push(e.data);
-      };
-      recorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, {
-          type: recorder.mimeType || "audio/webm",
-        });
-        stopStream();
-        void transcribe(blob);
-      };
-      recorder.start();
 
       setElapsed(0);
       setState("recording");
       timerRef.current = setInterval(() => setElapsed((s) => s + 1), 1000);
     } catch {
-      stopStream();
+      recorderRef.current = null;
       setError("Brak dostępu do mikrofonu.");
       setState("idle");
     }
   }
 
-  function stopRecording() {
-    // Przejdź do „przetwarzania" — reszta dzieje się w recorder.onstop.
-    if (recorderRef.current?.state === "recording") {
-      setState("processing");
-      recorderRef.current.stop();
+  async function stopRecording() {
+    const recorder = recorderRef.current;
+    if (!recorder) return;
+    recorderRef.current = null;
+    clearTimer();
+    setState("processing");
+    try {
+      const blob = await recorder.stop();
+      await transcribe(blob);
+    } catch {
+      setError("Nie udało się zakończyć nagrywania.");
+      setState("idle");
     }
   }
 
   async function transcribe(blob: Blob) {
     try {
       const form = new FormData();
-      form.append("file", blob, "nagranie.webm");
+      form.append("file", blob, "nagranie.wav");
       const res = await fetch("/api/transcribe", { method: "POST", body: form });
       const data = (await res.json().catch(() => ({}))) as {
         text?: string;
