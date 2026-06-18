@@ -50,7 +50,7 @@ export function useChat(day: string) {
   }, [open, day]);
 
   const send = useCallback(
-    async (text: string) => {
+    async (text: string, therapistId?: string) => {
       const message = text.trim();
       if (!message || sending || !day) return;
 
@@ -68,7 +68,7 @@ export function useChat(day: string) {
         const res = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ day, message }),
+          body: JSON.stringify({ day, message, therapistId }),
         });
         const data = (await res.json().catch(() => ({}))) as {
           reply?: string;

@@ -2,11 +2,18 @@
 
 import { useState, useRef, useLayoutEffect } from "react";
 import { usePathname } from "next/navigation";
-import { Paperclip, ArrowUp } from "lucide-react";
+import { ArrowUp, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSelectedDay } from "@/lib/selected-day";
 import { useChat } from "@/lib/use-chat";
+import { useActiveTherapist } from "@/lib/active-therapist";
 import { ChatPanel } from "@/components/chat-panel";
+import { TherapistAvatar } from "@/components/therapist-avatar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 // Maks. liczba wierszy zanim włączymy scroll w polu.
 const MAX_ROWS = 4;
@@ -25,7 +32,9 @@ export function AiBar() {
   const pathname = usePathname();
   const { selectedDay } = useSelectedDay();
   const { open, setOpen, messages, sending, error, send } = useChat(selectedDay);
+  const { active, catalog, unlocked, setActive } = useActiveTherapist();
   const [value, setValue] = useState("");
+  const [switcherOpen, setSwitcherOpen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   // Auto-wysokość: pole rośnie z treścią do MAX_ROWS, potem włącza się scroll.
@@ -43,9 +52,12 @@ export function AiBar() {
   function submit() {
     const text = value.trim();
     if (!text || sending) return;
-    send(text);
+    send(text, active.id);
     setValue("");
   }
+
+  // Persony dostępne do szybkiej zmiany (odblokowane).
+  const switchable = catalog.filter((t) => unlocked.has(t.id));
 
   function onKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     // Enter wysyła, Shift+Enter dodaje nowy wiersz.
@@ -62,6 +74,7 @@ export function AiBar() {
       <div className="bg-gradient-to-t from-background via-background to-transparent px-4 pb-4 pt-8">
         {open && (
           <ChatPanel
+            therapistId={active.id}
             day={selectedDay}
             messages={messages}
             sending={sending}
@@ -71,14 +84,51 @@ export function AiBar() {
         )}
 
         <div className="pointer-events-auto mx-auto flex w-full max-w-2xl items-center gap-2 rounded-3xl border border-border bg-foreground/90 px-2 py-2 text-background shadow-lg backdrop-blur">
-          <button
-            type="button"
-            disabled
-            aria-label="Załącznik (wkrótce)"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-background/60"
-          >
-            <Paperclip className="h-4 w-4" />
-          </button>
+          <Popover open={switcherOpen} onOpenChange={setSwitcherOpen}>
+            <PopoverTrigger
+              render={
+                <button
+                  type="button"
+                  aria-label={`Rozmawiasz z: ${active.name}. Zmień psychoterapeutę`}
+                  className="shrink-0 rounded-xl ring-offset-2 ring-offset-foreground transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-background/60"
+                />
+              }
+            >
+              <TherapistAvatar therapistId={active.id} size="md" />
+            </PopoverTrigger>
+
+            <PopoverContent align="start" side="top" className="w-60 p-1.5">
+              <p className="px-2 py-1 text-xs font-medium text-muted-foreground">
+                Rozmawiasz z
+              </p>
+              {switchable.map((t) => {
+                const isActive = t.id === active.id;
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => {
+                      setActive(t.id);
+                      setSwitcherOpen(false);
+                    }}
+                    className={cn(
+                      "flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition-colors hover:bg-accent",
+                      isActive && "bg-accent",
+                    )}
+                  >
+                    <TherapistAvatar therapistId={t.id} size="sm" />
+                    <span className="min-w-0 flex-1 truncate">{t.name}</span>
+                    {isActive && (
+                      <Check className="h-4 w-4 shrink-0 text-primary" />
+                    )}
+                  </button>
+                );
+              })}
+              <p className="px-2 pt-1.5 text-[11px] leading-tight text-muted-foreground">
+                Więcej psychoterapeutów odblokujesz ikoną mózgu obok kalendarza.
+              </p>
+            </PopoverContent>
+          </Popover>
 
           <textarea
             ref={textareaRef}

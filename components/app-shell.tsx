@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { EntriesSidebar } from "@/components/entries-sidebar";
 import { AiBar } from "@/components/ai-bar";
 import { SelectedDayProvider } from "@/lib/selected-day";
+import { ActiveTherapistProvider } from "@/lib/active-therapist";
 
 // Trasy renderowane bez powłoki master–detail (np. ekran logowania, dokumentacja).
 const BARE_PATHS = ["/login", "/docs"];
@@ -24,11 +25,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <SelectedDayProvider>
-      <div className="lg:grid lg:h-screen lg:grid-cols-[22rem_1fr]">
-        <EntriesSidebar />
-        <div className="lg:h-screen lg:overflow-y-auto">{children}</div>
-      </div>
-      <AiBar />
+      <ActiveTherapistProvider>
+        <div className="lg:grid lg:h-screen lg:grid-cols-[22rem_1fr]">
+          <EntriesSidebar />
+          <div className="lg:h-screen lg:overflow-y-auto">{children}</div>
+        </div>
+        <AiBar />
+      </ActiveTherapistProvider>
     </SelectedDayProvider>
   );
 }

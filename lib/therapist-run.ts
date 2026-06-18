@@ -9,7 +9,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { grokChat, type ChatMessage } from "@/lib/grok";
 import {
-  SYSTEM_PROMPT,
+  getSystemPrompt,
   CRISIS_PROMPT,
   TOOLS,
   buildFocusedContext,
@@ -18,6 +18,7 @@ import {
   runTool,
   hasToolCalls,
 } from "@/lib/therapist";
+import { DEFAULT_THERAPIST_ID } from "@/lib/therapists";
 import { loadEntriesForUser } from "@/lib/journal-server";
 import { hybridSearchEntries } from "@/lib/hybrid-search";
 import { ApiError } from "@/lib/journal-actions";
@@ -71,6 +72,7 @@ export async function askTherapist(
   userId: string,
   day: string,
   message: string,
+  therapistId: string = DEFAULT_THERAPIST_ID,
 ): Promise<string> {
   // 0. Limit zapytań AI — zanim cokolwiek zapłacimy (model + embeddingi).
   await enforceAiRateLimit(userId);
@@ -92,7 +94,7 @@ export async function askTherapist(
   // 2. Złóż wiadomości dla modelu: stały kontekst ostatnich dni + pobrane wpisy (RAG).
   const crisis = detectsCrisis(message);
   const systemContent =
-    SYSTEM_PROMPT +
+    getSystemPrompt(therapistId) +
     (crisis ? `\n\n${CRISIS_PROMPT}` : "") +
     `\n\n${buildFocusedContext(day, entries)}` +
     `\n\n${buildRetrievedContext(retrieved)}`;

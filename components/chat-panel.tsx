@@ -7,6 +7,8 @@ import { useEffect, useRef } from "react";
 import { X } from "lucide-react";
 import type { ChatMsg } from "@/lib/use-chat";
 import { cn } from "@/lib/utils";
+import { getTherapist, DEFAULT_THERAPIST_ID } from "@/lib/therapists";
+import { TherapistAvatar } from "@/components/therapist-avatar";
 
 function prettyDay(day: string): string {
   if (!day) return "";
@@ -19,12 +21,14 @@ function prettyDay(day: string): string {
 }
 
 export function ChatPanel({
+  therapistId = DEFAULT_THERAPIST_ID,
   day,
   messages,
   sending,
   error,
   onClose,
 }: {
+  therapistId?: string;
   day: string;
   messages: ChatMsg[];
   sending: boolean;
@@ -32,6 +36,7 @@ export function ChatPanel({
   onClose: () => void;
 }) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const therapist = getTherapist(therapistId) ?? getTherapist(DEFAULT_THERAPIST_ID)!;
 
   // Auto-scroll na dół przy nowych wiadomościach / stanie pisania.
   useEffect(() => {
@@ -43,11 +48,14 @@ export function ChatPanel({
     <div className="pointer-events-auto mx-auto mb-2 flex max-h-[60vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-border bg-background shadow-xl">
       {/* Nagłówek */}
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
-        <div className="min-w-0">
-          <p className="truncate text-sm font-semibold">Anthony Robbins</p>
-          <p className="truncate text-xs text-muted-foreground">
-            Twój przewodnik · {prettyDay(day)}
-          </p>
+        <div className="flex min-w-0 items-center gap-2.5">
+          <TherapistAvatar therapistId={therapist.id} size="md" />
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold">{therapist.name}</p>
+            <p className="truncate text-xs text-muted-foreground">
+              {therapist.tagline} · {prettyDay(day)}
+            </p>
+          </div>
         </div>
         <button
           type="button"

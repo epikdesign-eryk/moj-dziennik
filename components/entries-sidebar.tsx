@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { EntryListItem } from "@/components/entry-list-item";
 import { LogoutButton } from "@/components/logout-button";
 import { CalendarJump } from "@/components/calendar-jump";
+import { TherapistPicker } from "@/components/therapist-picker";
 import { DayStrip, filterByDay } from "@/components/day-strip";
 import { useEntries } from "@/lib/use-entries";
 import { useSelectedDay } from "@/lib/selected-day";
@@ -35,7 +36,10 @@ export function EntriesSidebar() {
           >
             Mój Dziennik
           </Link>
-          <CalendarJump />
+          <div className="flex items-center gap-1.5">
+            <TherapistPicker />
+            <CalendarJump />
+          </div>
         </div>
         <DayStrip surface="sidebar" />
       </header>

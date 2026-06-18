@@ -8,7 +8,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 // Ścieżki dostępne bez zalogowania.
-const PUBLIC_PATHS = ["/login", "/docs"];
+const PUBLIC_PATHS = ["/login", "/docs", "/api/stripe/webhook"];
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
