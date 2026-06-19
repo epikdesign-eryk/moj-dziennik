@@ -83,14 +83,14 @@ export function AiBar() {
           />
         )}
 
-        <div className="pointer-events-auto mx-auto flex w-full max-w-2xl items-center gap-2 rounded-3xl border border-border bg-foreground/90 px-2 py-2 text-background shadow-lg backdrop-blur">
+        <div className="pointer-events-auto mx-auto flex w-full max-w-2xl items-center gap-2 rounded-3xl border border-border bg-card/95 px-2 py-2 text-foreground shadow-md backdrop-blur">
           <Popover open={switcherOpen} onOpenChange={setSwitcherOpen}>
             <PopoverTrigger
               render={
                 <button
                   type="button"
                   aria-label={`Rozmawiasz z: ${active.name}. Zmień psychoterapeutę`}
-                  className="shrink-0 rounded-xl ring-offset-2 ring-offset-foreground transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-background/60"
+                  className="shrink-0 rounded-xl ring-offset-2 ring-offset-card transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 />
               }
             >
@@ -138,7 +138,7 @@ export function AiBar() {
             onKeyDown={onKeyDown}
             onFocus={() => setOpen(true)}
             placeholder="Porozmawiaj o swoim dniu…"
-            className="min-w-0 flex-1 resize-none bg-transparent px-1 py-1.5 text-sm leading-5 text-background placeholder:text-background/50 focus:outline-none"
+            className="min-w-0 flex-1 resize-none bg-transparent px-1 py-1.5 text-sm leading-5 text-foreground placeholder:text-muted-foreground focus:outline-none"
           />
 
           <button
@@ -147,7 +147,7 @@ export function AiBar() {
             disabled={!canSend}
             aria-label="Wyślij"
             className={cn(
-              "flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-background text-foreground transition-opacity",
+              "flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-opacity",
               canSend ? "opacity-100" : "opacity-40",
             )}
           >

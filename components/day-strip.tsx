@@ -26,7 +26,9 @@ export function DayStrip({ surface = "background" }: { surface?: "background" | 
     // Bazujemy na dzisiejszej dacie; gdy `today` jeszcze pusty (przed mount),
     // i tak liczymy od teraz — lista i tak dostanie klucze po zamontowaniu.
     const base = today ? new Date(`${today}T00:00:00`) : new Date();
-    return buildDayRange(base);
+    // Kilka dni „w przód" — pokazujemy je wyszarzone po prawej, żeby dziś mógł
+    // być wycentrowany. Są nieklikalne i nie da się do nich doscrollować.
+    return buildDayRange(base, 120, 7);
   }, [today]);
 
   // Zbiór dni (YYYY-MM-DD), które mają wpisy — do wyświetlenia kropki.
@@ -38,6 +40,20 @@ export function DayStrip({ surface = "background" }: { surface?: "background" | 
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const activeRef = useRef<HTMLButtonElement | null>(null);
+  const todayRef = useRef<HTMLButtonElement | null>(null);
+
+  // Pozycja przewinięcia (scrollLeft), przy której „dziś" jest dokładnie na
+  // środku szerokości paska. To jednocześnie maksymalny dozwolony scroll —
+  // dalej (w przyszłość) nie pozwalamy się przewinąć.
+  const todayCenterScrollLeft = (): number | null => {
+    const el = scrollRef.current;
+    const t = todayRef.current;
+    if (!el || !t) return null;
+    const er = el.getBoundingClientRect();
+    const tr = t.getBoundingClientRect();
+    const delta = tr.left + tr.width / 2 - (er.left + er.width / 2);
+    return el.scrollLeft + delta;
+  };
 
   // Na desktopie: scroll kółkiem (pionowy → poziomy) i przeciąganie myszką.
   const isDragging = useDragScroll(scrollRef);
@@ -55,14 +71,20 @@ export function DayStrip({ surface = "background" }: { surface?: "background" | 
     });
   }, [selectedDay]);
 
-  // Śledź pozycję przewinięcia: pokaż przycisk, gdy do prawej krawędzi
-  // (gdzie jest „dziś") zostało więcej niż próg.
+  // Śledź pozycję przewinięcia: blokuj scroll „w przyszłość" (poza wycentrowane
+  // „dziś") i pokaż przycisk powrotu, gdy odjechaliśmy w przeszłość (w lewo).
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
     const update = () => {
-      const distanceToEnd = el.scrollWidth - el.clientWidth - el.scrollLeft;
-      setShowBackToToday(distanceToEnd > 96);
+      const center = todayCenterScrollLeft();
+      if (center == null) return;
+      // Twardy limit: nie pozwól przewinąć dalej niż wycentrowane „dziś".
+      if (el.scrollLeft > center + 1) {
+        el.scrollLeft = center;
+        return;
+      }
+      setShowBackToToday(center - el.scrollLeft > 96);
     };
     update();
     el.addEventListener("scroll", update, { passive: true });
@@ -75,9 +97,9 @@ export function DayStrip({ surface = "background" }: { surface?: "background" | 
 
   function goToToday() {
     if (today) setSelectedDay(today);
-    // Dosuń do skrajnie prawej (gdzie jest „dziś") — niezależnie od tego, czy
-    // zmiana wyboru wyzwoli efekt dosuwania.
-    scrollRef.current?.scrollTo({ left: scrollRef.current.scrollWidth, behavior: "smooth" });
+    const el = scrollRef.current;
+    const center = todayCenterScrollLeft();
+    if (el && center != null) el.scrollTo({ left: center, behavior: "smooth" });
   }
 
   return (
@@ -96,6 +118,7 @@ export function DayStrip({ surface = "background" }: { surface?: "background" | 
         const { weekday, day } = dayStripLabels(date);
         const isSelected = ymd === selectedDay;
         const isToday = ymd === today;
+        const isFuture = today !== "" && ymd > today;
         const hasEntries = daysWithEntries.has(ymd);
 
         // Separator z nazwą miesiąca przed pierwszym dniem oraz przy każdej
@@ -115,25 +138,38 @@ export function DayStrip({ surface = "background" }: { surface?: "background" | 
               </div>
             )}
           <button
-            ref={isSelected ? activeRef : undefined}
+            ref={(node) => {
+              if (isSelected) activeRef.current = node;
+              if (isToday) todayRef.current = node;
+            }}
             type="button"
+            disabled={isFuture}
             onClick={() => setSelectedDay(ymd)}
             aria-pressed={isSelected}
             aria-current={isToday ? "date" : undefined}
             className={cn(
-              "flex h-[4.5rem] w-14 shrink-0 flex-col items-center justify-center gap-1.5 rounded-2xl border transition-all",
-              isSelected
-                ? "border-foreground bg-foreground text-background shadow-md"
-                : "border-border/60 bg-card text-muted-foreground shadow-sm hover:border-border hover:shadow-md",
+              "flex h-[4.5rem] w-14 shrink-0 flex-col items-center justify-center gap-1.5 rounded-[12px] transition-all",
+              isFuture
+                ? "cursor-not-allowed bg-transparent opacity-40"
+                : isSelected
+                  ? "bg-card shadow-md"
+                  : "bg-transparent hover:bg-card/60",
             )}
           >
-            <span className="text-[9px] font-light uppercase tracking-[0.12em]">
+            <span
+              className={cn(
+                "text-[10px] font-medium uppercase tracking-[0.12em]",
+                isSelected ? "text-muted-foreground" : "text-muted-foreground/70",
+              )}
+            >
               {isToday ? "dziś" : weekday}
             </span>
             <span
               className={cn(
-                "text-lg font-medium leading-none",
-                !isSelected && "text-foreground",
+                "text-lg leading-none",
+                isSelected
+                  ? "font-semibold text-foreground"
+                  : "font-medium text-foreground/60",
               )}
             >
               {day}
@@ -141,11 +177,7 @@ export function DayStrip({ surface = "background" }: { surface?: "background" | 
             <span
               className={cn(
                 "h-1 w-1 rounded-full",
-                hasEntries
-                  ? isSelected
-                    ? "bg-background"
-                    : "bg-primary"
-                  : "bg-transparent",
+                hasEntries ? "bg-primary" : "bg-transparent",
               )}
               aria-hidden
             />

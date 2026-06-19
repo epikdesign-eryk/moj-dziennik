@@ -2,15 +2,30 @@
 
 import { useEditor, EditorContent, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import { useEffect, useRef, useState } from "react";
+import { useEffect } from "react";
 import { Mic, Square, Loader2 } from "lucide-react";
-import { VoiceRecorder } from "@/lib/voice-recorder";
+import {
+  useVoiceTranscription,
+  formatElapsed,
+} from "@/lib/use-voice-transcription";
 import { cn } from "@/lib/utils";
 
 interface EntryEditorProps {
   value: string;
   onChange: (html: string) => void;
   placeholder?: string;
+  /** Tryb „goły": bez ramki i bez wewnętrznego toolbara (kreator ma własny). */
+  bare?: boolean;
+  /** Udostępnia instancję edytora rodzicowi (np. by wstawić tekst z dyktowania). */
+  onReady?: (editor: Editor) => void;
+}
+
+/** Wstawia tekst na pozycji kursora, dodając spację gdy przylega do słowa. */
+export function insertTextAtCursor(editor: Editor, text: string) {
+  const { from } = editor.state.selection;
+  const before = from > 1 ? editor.state.doc.textBetween(from - 1, from) : "";
+  const prefix = before && !/\s/.test(before) ? " " : "";
+  editor.chain().focus().insertContent(prefix + text).run();
 }
 
 function ToolbarButton({
@@ -37,9 +52,22 @@ function ToolbarButton({
   );
 }
 
-function Toolbar({ editor }: { editor: Editor }) {
+/**
+ * Pasek formatowania (B / I / listy). Domyślnie zawiera też przycisk dyktowania,
+ * ale w kreatorze wpisu mikrofon żyje w dolnym pasku, więc można go ukryć
+ * (`showVoice={false}`) i osadzić toolbar bez ramki.
+ */
+export function Toolbar({
+  editor,
+  showVoice = true,
+  className,
+}: {
+  editor: Editor;
+  showVoice?: boolean;
+  className?: string;
+}) {
   return (
-    <div className="flex items-center gap-1 border-b border-border px-2 py-1.5">
+    <div className={cn("flex items-center gap-1", className)}>
       <ToolbarButton
         onClick={() => editor.chain().focus().toggleBold().run()}
         active={editor.isActive("bold")}
@@ -65,120 +93,30 @@ function Toolbar({ editor }: { editor: Editor }) {
         1. Lista
       </ToolbarButton>
 
-      <div className="ml-auto">
-        <VoiceButton editor={editor} />
-      </div>
+      {showVoice && (
+        <div className="ml-auto">
+          <VoiceButton editor={editor} />
+        </div>
+      )}
     </div>
   );
 }
 
-/** Krótki licznik mm:ss dla trwającego nagrania. */
-function formatElapsed(seconds: number) {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${m}:${s.toString().padStart(2, "0")}`;
-}
-
-type VoiceState = "idle" | "recording" | "processing";
-
 /**
- * Dyktowanie głosowe: nagrywa mikrofonem (MediaRecorder), wysyła do
- * /api/transcribe (xAI STT na kredytach Groka) i wstawia rozpoznany tekst do
- * edytora. W trakcie nagrywania pokazuje pulsującą animację i licznik czasu.
+ * Dyktowanie głosowe w toolbarze edytora: nagrywa mikrofonem, wysyła do
+ * /api/transcribe i wstawia rozpoznany tekst na pozycji kursora. W trakcie
+ * nagrywania pokazuje pulsującą animację i licznik czasu.
  */
 function VoiceButton({ editor }: { editor: Editor }) {
-  const [state, setState] = useState<VoiceState>("idle");
-  const [elapsed, setElapsed] = useState(0);
-  const [error, setError] = useState<string | null>(null);
-
-  const recorderRef = useRef<VoiceRecorder | null>(null);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  // Sprzątanie, gdy komponent zniknie w trakcie nagrywania.
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-      recorderRef.current?.stop().catch(() => {});
-    };
-  }, []);
-
-  function clearTimer() {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-  }
-
-  async function startRecording() {
-    setError(null);
-    if (typeof navigator === "undefined" || !navigator.mediaDevices) {
-      setError("Twoja przeglądarka nie wspiera nagrywania.");
-      return;
-    }
-    try {
-      const recorder = new VoiceRecorder();
-      await recorder.start();
-      recorderRef.current = recorder;
-
-      setElapsed(0);
-      setState("recording");
-      timerRef.current = setInterval(() => setElapsed((s) => s + 1), 1000);
-    } catch {
-      recorderRef.current = null;
-      setError("Brak dostępu do mikrofonu.");
-      setState("idle");
-    }
-  }
-
-  async function stopRecording() {
-    const recorder = recorderRef.current;
-    if (!recorder) return;
-    recorderRef.current = null;
-    clearTimer();
-    setState("processing");
-    try {
-      const blob = await recorder.stop();
-      await transcribe(blob);
-    } catch {
-      setError("Nie udało się zakończyć nagrywania.");
-      setState("idle");
-    }
-  }
-
-  async function transcribe(blob: Blob) {
-    try {
-      const form = new FormData();
-      form.append("file", blob, "nagranie.wav");
-      const res = await fetch("/api/transcribe", { method: "POST", body: form });
-      const data = (await res.json().catch(() => ({}))) as {
-        text?: string;
-        error?: string;
-      };
-      if (!res.ok) {
-        throw new Error(data.error || "Nie udało się przetworzyć nagrania.");
-      }
-      const text = (data.text ?? "").trim();
-      if (text) {
-        // Wstaw na pozycji kursora; dodaj spację, jeśli przylega do tekstu.
-        const { from } = editor.state.selection;
-        const before = from > 1 ? editor.state.doc.textBetween(from - 1, from) : "";
-        const prefix = before && !/\s/.test(before) ? " " : "";
-        editor.chain().focus().insertContent(prefix + text).run();
-      } else {
-        setError("Nie rozpoznano mowy. Spróbuj jeszcze raz.");
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Błąd transkrypcji.");
-    } finally {
-      setState("idle");
-    }
-  }
+  const { state, elapsed, error, start, stop } = useVoiceTranscription({
+    onText: (text) => insertTextAtCursor(editor, text),
+  });
 
   if (state === "recording") {
     return (
       <button
         type="button"
-        onClick={stopRecording}
+        onClick={stop}
         aria-label="Zatrzymaj nagrywanie"
         title="Zatrzymaj nagrywanie"
         className="flex items-center gap-2 rounded-full bg-destructive/10 px-3 py-1 text-sm font-medium text-destructive transition-colors hover:bg-destructive/20"
@@ -216,7 +154,7 @@ function VoiceButton({ editor }: { editor: Editor }) {
       )}
       <button
         type="button"
-        onClick={startRecording}
+        onClick={start}
         aria-label="Dyktuj głosowo"
         title="Dyktuj głosowo"
         className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
@@ -227,7 +165,13 @@ function VoiceButton({ editor }: { editor: Editor }) {
   );
 }
 
-export function EntryEditor({ value, onChange, placeholder }: EntryEditorProps) {
+export function EntryEditor({
+  value,
+  onChange,
+  placeholder,
+  bare = false,
+  onReady,
+}: EntryEditorProps) {
   const editor = useEditor({
     extensions: [StarterKit],
     content: value,
@@ -249,9 +193,21 @@ export function EntryEditor({ value, onChange, placeholder }: EntryEditorProps) 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editor]);
 
+  // Przekaż instancję edytora rodzicowi (kreator wstawia do niej tekst z dyktowania).
+  useEffect(() => {
+    if (editor && onReady) onReady(editor);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editor]);
+
+  if (bare) {
+    return <EditorContent editor={editor} />;
+  }
+
   return (
     <div className="rounded-xl border border-input bg-card focus-within:ring-2 focus-within:ring-ring">
-      {editor && <Toolbar editor={editor} />}
+      {editor && (
+        <Toolbar editor={editor} className="border-b border-border px-2 py-1.5" />
+      )}
       <EditorContent editor={editor} />
     </div>
   );

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { BookOpen } from "lucide-react";
+import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,6 +15,7 @@ type Mode = "login" | "register";
 export default function LoginPage() {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>("login");
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -28,7 +30,14 @@ export default function LoginPage() {
     const { error } =
       mode === "login"
         ? await supabase.auth.signInWithPassword({ email, password })
-        : await supabase.auth.signUp({ email, password });
+        : await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+              // Imię ląduje w user_metadata — bez osobnej tabeli.
+              data: { name: name.trim() },
+            },
+          });
 
     if (error) {
       setError(translateError(error.message));
@@ -51,19 +60,30 @@ export default function LoginPage() {
         Docs API
       </Link>
       <div className="w-full max-w-sm">
-        <div className="mb-8 flex flex-col items-center gap-3 text-center">
-          <BookOpen className="h-10 w-10 text-muted-foreground" />
-          <div>
-            <h1 className="text-2xl font-semibold">Mój Dziennik</h1>
-            <p className="text-sm text-muted-foreground">
-              {mode === "login"
-                ? "Zaloguj się, aby zobaczyć swoje wpisy."
-                : "Załóż konto, aby zacząć pisać."}
-            </p>
-          </div>
+        <div className="mb-8 flex flex-col items-center gap-4 text-center">
+          <Logo size="lg" />
+          <p className="text-sm text-muted-foreground">
+            {mode === "login"
+              ? "Zaloguj się, aby zobaczyć swoje wpisy."
+              : "Załóż konto, aby zacząć pisać."}
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          {mode === "register" && (
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="name">Imię</Label>
+              <Input
+                id="name"
+                type="text"
+                autoComplete="given-name"
+                required
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+            </div>
+          )}
+
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="email">E-mail</Label>
             <Input

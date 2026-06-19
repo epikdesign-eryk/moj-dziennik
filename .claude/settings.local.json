@@ -6,7 +6,16 @@
       "Bash(git config *)",
       "Bash(git -C \"C:\\\\Users\\\\eryk\\\\Desktop\\\\week-1\" status)",
       "mcp__245a0235-8035-4826-aa0f-e656d8e4f62c__execute_sql",
-      "WebSearch"
+      "WebSearch",
+      "mcp__245a0235-8035-4826-aa0f-e656d8e4f62c__list_tables",
+      "mcp__245a0235-8035-4826-aa0f-e656d8e4f62c__list_migrations",
+      "Bash(git check-ignore *)",
+      "Bash(gh auth *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(gh repo *)",
+      "Bash(ls *.png *.jpg *.jpeg 2>/dev/null; echo \"---\"; ls ~/Desktop/*.png 2>/dev/null | head)"
     ]
   }
 }

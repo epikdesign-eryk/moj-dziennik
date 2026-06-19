@@ -50,24 +50,30 @@
 }
 
 :root {
-  /* Ciepły, kremowy motyw z żółto-pomarańczowym akcentem (wzór: „5 Minute Journal"). */
-  --background: oklch(0.985 0.014 85);
-  --foreground: oklch(0.31 0.025 60);
-  --card: oklch(0.995 0.007 85);
-  --card-foreground: oklch(0.31 0.025 60);
-  --popover: oklch(0.995 0.007 85);
-  --popover-foreground: oklch(0.31 0.025 60);
+  /* Ciepły, kremowy motyw skopiowany 1:1 z aplikacji-wzoru „5 Minute Journal".
+     Paleta z pipety na screenach inspiracji:
+       #F4F2EE  tło (potwierdzone co do piksela)
+       #EAE9E3  subtelne powierzchnie / linie odróżniające się od tła
+       #A9A59E  tekst drugorzędny
+       #38291C  główny brąz (tekst)
+       żółty akcent przycisków zostaje jako --primary. */
+  --background: #f4f2ee;
+  --foreground: #38291c;
+  --card: #faf9f5;
+  --card-foreground: #38291c;
+  --popover: #faf9f5;
+  --popover-foreground: #38291c;
   --primary: oklch(0.81 0.145 72);
-  --primary-foreground: oklch(0.3 0.04 60);
-  --secondary: oklch(0.955 0.022 85);
-  --secondary-foreground: oklch(0.31 0.025 60);
-  --muted: oklch(0.955 0.018 85);
-  --muted-foreground: oklch(0.53 0.025 65);
-  --accent: oklch(0.92 0.06 80);
-  --accent-foreground: oklch(0.3 0.04 60);
+  --primary-foreground: #38291c;
+  --secondary: #eae9e3;
+  --secondary-foreground: #38291c;
+  --muted: #eae9e3;
+  --muted-foreground: #a9a59e;
+  --accent: #eae9e3;
+  --accent-foreground: #38291c;
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.9 0.022 80);
-  --input: oklch(0.9 0.022 80);
+  --border: #e4e1d9;
+  --input: #e4e1d9;
   --ring: oklch(0.81 0.145 72);
   --chart-1: oklch(0.81 0.145 72);
   --chart-2: oklch(0.7 0.12 50);
@@ -75,13 +81,13 @@
   --chart-4: oklch(0.5 0.08 60);
   --chart-5: oklch(0.4 0.06 70);
   --radius: 1rem;
-  --sidebar: oklch(0.985 0.014 85);
-  --sidebar-foreground: oklch(0.31 0.025 60);
+  --sidebar: #f4f2ee;
+  --sidebar-foreground: #38291c;
   --sidebar-primary: oklch(0.81 0.145 72);
-  --sidebar-primary-foreground: oklch(0.3 0.04 60);
-  --sidebar-accent: oklch(0.92 0.06 80);
-  --sidebar-accent-foreground: oklch(0.3 0.04 60);
-  --sidebar-border: oklch(0.9 0.022 80);
+  --sidebar-primary-foreground: #38291c;
+  --sidebar-accent: #eae9e3;
+  --sidebar-accent-foreground: #38291c;
+  --sidebar-border: #e4e1d9;
   --sidebar-ring: oklch(0.81 0.145 72);
 }
 

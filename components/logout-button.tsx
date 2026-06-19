@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { BookOpen, LogOut, MoreVertical } from "lucide-react";
+import { BookOpen, LogOut, MoreVertical, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -44,7 +44,11 @@ export function LogoutButton() {
       >
         <MoreVertical className="h-4 w-4" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-40">
+      <DropdownMenuContent align="end" className="w-48">
+        <DropdownMenuItem onClick={() => router.push("/profile")}>
+          <Settings className="h-4 w-4" />
+          Ustawienia profilu
+        </DropdownMenuItem>
         <DropdownMenuItem onClick={() => router.push("/docs/api")}>
           <BookOpen className="h-4 w-4" />
           Docs

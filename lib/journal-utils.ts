@@ -49,6 +49,15 @@ export function formatDateLong(iso: string): string {
   return `${datePart} · ${timePart}`;
 }
 
+/** Data bez godziny, np. „18 czerwca 2026" (w UI często wyświetlana wielkimi literami). */
+export function formatDateOnly(iso: string): string {
+  return new Date(iso).toLocaleDateString("pl-PL", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
+
 /** Krótszy zapis daty na listę (np. „29 maj"). */
 export function formatDateShort(iso: string): string {
   return new Date(iso).toLocaleDateString("pl-PL", {
