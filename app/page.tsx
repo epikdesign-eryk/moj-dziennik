@@ -57,7 +57,7 @@ export default function HomePage() {
     <main className="mx-auto w-full max-w-2xl px-4 py-8 pb-32">
       {/* Mobile: nagłówek + pasek dni + lista (desktop ma to w panelu bocznym). */}
       <div className="lg:hidden">
-        <header className="mb-6 flex items-center justify-between gap-3">
+        <header className="intro-stage-2 mb-6 flex items-center justify-between gap-3">
           <Logo size="sm" href="/" />
           <div className="flex w-auto items-center gap-1.5">
             <TherapistPicker />
@@ -74,7 +74,7 @@ export default function HomePage() {
           <p className="text-muted-foreground">Wczytywanie…</p>
         ) : dayEntries.length === 0 ? (
           isToday ? (
-            <div className="flex min-h-[55vh] flex-col items-center justify-center gap-6 text-center">
+            <div className="intro-stage-1 flex min-h-[55vh] flex-col items-center justify-center gap-6 text-center">
               <div>
                 <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
                   {dateLabel}
@@ -124,7 +124,7 @@ export default function HomePage() {
       </div>
 
       {/* Desktop: ekran powitalny w prawym panelu (taki sam jak na mobile). */}
-      <div className="hidden min-h-[60vh] flex-col items-center justify-center gap-6 text-center lg:flex">
+      <div className="intro-stage-1 hidden min-h-[60vh] flex-col items-center justify-center gap-6 text-center lg:flex">
         <div>
           <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
             {dateLabel}

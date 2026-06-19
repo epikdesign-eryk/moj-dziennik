@@ -29,7 +29,7 @@ export function EntriesSidebar() {
 
   return (
     <aside className="hidden border-r border-border bg-sidebar lg:flex lg:h-screen lg:flex-col">
-      <header className="border-b border-border px-3 py-3">
+      <header className="intro-stage-2 border-b border-border px-3 py-3">
         <div className="mb-3 flex items-center justify-between gap-2">
           <Logo size="sm" href="/" />
           <div className="flex items-center gap-1.5">

@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { EntriesSidebar } from "@/components/entries-sidebar";
 import { AiBar } from "@/components/ai-bar";
+import { IntroOverlay } from "@/components/intro-overlay";
 import { SelectedDayProvider } from "@/lib/selected-day";
 import { ActiveTherapistProvider } from "@/lib/active-therapist";
 
@@ -17,7 +18,13 @@ const BARE_PATHS = ["/login", "/docs"];
  *   każda kolumna z własnym scrollem.
  * Pasek AI (AiBar) jest zaafiksowany na dole na obu szerokościach.
  */
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({
+  children,
+  introSeen = false,
+}: {
+  children: React.ReactNode;
+  introSeen?: boolean;
+}) {
   const pathname = usePathname();
   if (BARE_PATHS.some((p) => pathname.startsWith(p))) {
     return <>{children}</>;
@@ -31,6 +38,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="lg:h-screen lg:overflow-y-auto">{children}</div>
         </div>
         <AiBar />
+        <IntroOverlay seen={introSeen} />
       </ActiveTherapistProvider>
     </SelectedDayProvider>
   );

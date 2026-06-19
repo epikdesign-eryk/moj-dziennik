@@ -70,7 +70,7 @@ export function AiBar() {
   const canSend = value.trim().length > 0 && !sending;
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 lg:left-[22rem]">
+    <div className="intro-stage-3 pointer-events-none fixed inset-x-0 bottom-0 z-40 lg:left-[22rem]">
       <div className="bg-gradient-to-t from-background via-background to-transparent px-4 pb-4 pt-8">
         {open && (
           <ChatPanel
