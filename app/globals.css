@@ -188,9 +188,10 @@
 /* ── Ekran powitalny (intro): okładka książki + etapowe wejście ──────────────
    Overlay = front okładki kryjący całą appkę. Po krótkim przytrzymaniu okładka
    otwiera się jak drzwi (rotateY wokół lewej krawędzi), potem overlay znika.
-   Reszta UI wchodzi etapami: przywitanie+CTA → górny pasek → pasek AI.
-   Wszystko gra TYLKO przy pierwszym wejściu w sesji — gating przez
-   `html:not([data-intro="seen"])` (atrybut ustawia inline-script w layoutcie). */
+   OKŁADKA gra raz na sesję (gating `data-intro="seen"`).
+   Etapowe wejście trzech bloków gra ZA KAŻDYM wejściem (płynnie, GPU):
+     1. przywitanie + CTA, 2. górny pasek + kalendarz (jako jedność), 3. pasek AI.
+   Przy pierwszym wejściu bloki czekają, aż okładka się otworzy (większe delaye). */
 
 .intro-overlay {
   /* perspektywa dla obrotu okładki; tło przezroczyste — appka prześwituje,
@@ -205,41 +206,52 @@
   box-shadow: 0 30px 80px -20px rgba(56, 41, 28, 0.45);
   animation: intro-cover-open 0.95s cubic-bezier(0.7, 0, 0.3, 1) 1.1s forwards;
 }
+/* Okładkę pokazujemy tylko raz na sesję. */
+html[data-intro="seen"] .intro-overlay {
+  display: none;
+}
 
 /* Napis/ikona na okładce wjeżdżają do kadru */
 .intro-splash {
   animation: intro-splash-in 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-/* Etapowe wejście UI po otwarciu okładki */
-.intro-stage-1 {
-  animation: intro-rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) 1.7s both;
+/* Etapowe wejście UI — domyślnie szybkie (każde wejście do aplikacji).
+   `will-change` + translate3d trzymają animacje na warstwie GPU (bez szarpania). */
+.intro-stage-2,
+.intro-stage-3 {
+  will-change: transform, opacity;
 }
 .intro-stage-2 {
-  animation: intro-rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) 2.05s both;
+  animation: intro-rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.18s both;
 }
 .intro-stage-3 {
-  animation: intro-slide-up 0.7s cubic-bezier(0.5, 1.3, 0.5, 1) 2.35s both;
+  animation: intro-slide-up 0.55s cubic-bezier(0.22, 1, 0.36, 1) 0.3s both;
 }
 
-/* Po obejrzeniu intro (ta sama sesja / odświeżenie): nic nie animujemy. */
-html[data-intro="seen"] .intro-overlay {
-  display: none;
+/* Pierwsze wejście w sesji: bloki czekają, aż okładka się otworzy (~2,05 s). */
+html:not([data-intro="seen"]) .intro-stage-2 {
+  animation-delay: 1.95s;
 }
-html[data-intro="seen"] .intro-stage-1,
-html[data-intro="seen"] .intro-stage-2,
-html[data-intro="seen"] .intro-stage-3 {
-  animation: none;
+html:not([data-intro="seen"]) .intro-stage-3 {
+  animation-delay: 2.2s;
+}
+
+/* Bloczek powitania: prosta animacja wejścia (slide-in od dołu, offset ~10%).
+   Gra przy montażu — a montujemy go dopiero, gdy okładka się otworzy. */
+.intro-greeting {
+  animation: intro-greeting-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+  will-change: transform, opacity;
 }
 
 @keyframes intro-splash-in {
   from {
     opacity: 0;
-    transform: translateY(24px) scale(0.96);
+    transform: translate3d(0, 24px, 0) scale(0.96);
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translate3d(0, 0, 0) scale(1);
   }
 }
 
@@ -259,22 +271,33 @@ html[data-intro="seen"] .intro-stage-3 {
 @keyframes intro-rise {
   from {
     opacity: 0;
-    transform: translateY(18px);
+    transform: translate3d(0, 16px, 0);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes intro-greeting-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 10%, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
   }
 }
 
 @keyframes intro-slide-up {
   from {
     opacity: 0;
-    transform: translateY(130%);
+    transform: translate3d(0, 130%, 0);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translate3d(0, 0, 0);
   }
 }
 
@@ -284,7 +307,7 @@ html[data-intro="seen"] .intro-stage-3 {
     display: none;
   }
   .intro-splash,
-  .intro-stage-1,
+  .intro-greeting,
   .intro-stage-2,
   .intro-stage-3 {
     animation: none;

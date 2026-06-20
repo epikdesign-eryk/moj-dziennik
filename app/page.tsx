@@ -41,6 +41,34 @@ export default function HomePage() {
 
   const hello = name ? `${greeting}, ${name}!` : greeting;
 
+  // Czy ekran powitalny (okładka) już zniknął. Na mobile powitanie montuje się
+  // dopiero po doczytaniu wpisów — gdyby zamontowało się ZA okładką (pierwsze
+  // wejście), jego animacja wejścia poszłaby w tle i po otwarciu książki było
+  // widoczne „na sucho". Dlatego trzymamy je, aż okładka się otworzy
+  // (IntroOverlay ustawia data-intro="seen"); wtedy wpływa świeżo, jako 3. etap.
+  const [introDone, setIntroDone] = useState(false);
+  useEffect(() => {
+    const el = document.documentElement;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce || el.dataset.intro === "seen") {
+      setIntroDone(true);
+      return;
+    }
+    const obs = new MutationObserver(() => {
+      if (el.dataset.intro === "seen") {
+        setIntroDone(true);
+        obs.disconnect();
+      }
+    });
+    obs.observe(el, { attributes: true, attributeFilter: ["data-intro"] });
+    // Bezpiecznik, gdyby z jakiegoś powodu atrybut nie wpadł.
+    const t = setTimeout(() => setIntroDone(true), 3500);
+    return () => {
+      obs.disconnect();
+      clearTimeout(t);
+    };
+  }, []);
+
   const dayEntries = filterByDay(entries, selectedDay);
   const isToday = selectedDay !== "" && selectedDay === today;
 
@@ -57,24 +85,30 @@ export default function HomePage() {
     <main className="mx-auto w-full max-w-2xl px-4 py-8 pb-32">
       {/* Mobile: nagłówek + pasek dni + lista (desktop ma to w panelu bocznym). */}
       <div className="lg:hidden">
-        <header className="intro-stage-2 mb-6 flex items-center justify-between gap-3">
-          <Logo size="sm" href="/" />
-          <div className="flex w-auto items-center gap-1.5">
-            <TherapistPicker />
-            <CalendarJump />
-            <LogoutButton />
-          </div>
-        </header>
+        {/* Górny pasek + kalendarz jako jeden blok wejścia (intro-stage-2). */}
+        <div className="intro-stage-2">
+          <header className="mb-6 flex items-center justify-between gap-3">
+            <Logo size="sm" href="/" />
+            <div className="flex w-auto items-center gap-1.5">
+              <TherapistPicker />
+              <CalendarJump />
+              <LogoutButton />
+            </div>
+          </header>
 
-        <div className="mb-6">
-          <DayStrip />
+          <div className="mb-6">
+            <DayStrip />
+          </div>
         </div>
 
-        {!loaded ? (
-          <p className="text-muted-foreground">Wczytywanie…</p>
+        {!(loaded && introDone) ? (
+          /* Rezerwujemy wysokość ekranu powitalnego: czekamy aż wpisy się
+             doczytają I okładka się otworzy, żeby powitanie wpłynęło świeżo w
+             gotowe miejsce (bez skoku układu, bez „popa” i bez grania za okładką). */
+          <div className="min-h-[55vh]" aria-hidden />
         ) : dayEntries.length === 0 ? (
           isToday ? (
-            <div className="intro-stage-1 flex min-h-[55vh] flex-col items-center justify-center gap-6 text-center">
+            <div className="intro-greeting flex min-h-[55vh] flex-col items-center justify-center gap-6 text-center">
               <div>
                 <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
                   {dateLabel}
@@ -123,26 +157,32 @@ export default function HomePage() {
         )}
       </div>
 
-      {/* Desktop: ekran powitalny w prawym panelu (taki sam jak na mobile). */}
-      <div className="intro-stage-1 hidden min-h-[60vh] flex-col items-center justify-center gap-6 text-center lg:flex">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-            {dateLabel}
-          </p>
-          <h1 className="mt-3 text-3xl font-semibold">{hello}</h1>
+      {/* Desktop: ekran powitalny w prawym panelu (taki sam jak na mobile).
+          Czekamy aż okładka się otworzy (introDone), żeby powitanie zamontowało
+          się świeżo i animacja wejścia nie zagrała za okładką. */}
+      {!introDone ? (
+        <div className="hidden min-h-[60vh] lg:block" aria-hidden />
+      ) : (
+        <div className="intro-greeting hidden min-h-[60vh] flex-col items-center justify-center gap-6 text-center lg:flex">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+              {dateLabel}
+            </p>
+            <h1 className="mt-3 text-3xl font-semibold">{hello}</h1>
+          </div>
+          {isToday && (
+            <Link
+              href="/new"
+              className={cn(
+                buttonVariants({ size: "lg" }),
+                "h-12 w-full max-w-[280px] rounded-[12px] text-base font-semibold shadow-sm",
+              )}
+            >
+              Zacznij z dzisiejszym wpisem
+            </Link>
+          )}
         </div>
-        {isToday && (
-          <Link
-            href="/new"
-            className={cn(
-              buttonVariants({ size: "lg" }),
-              "h-12 w-full max-w-[280px] rounded-[12px] text-base font-semibold shadow-sm",
-            )}
-          >
-            Zacznij z dzisiejszym wpisem
-          </Link>
-        )}
-      </div>
+      )}
     </main>
   );
 }
