@@ -5,6 +5,7 @@
 // Historia ładowana leniwie — dopiero gdy panel zostanie otwarty dla danego dnia.
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { track } from "@/lib/analytics";
 
 export interface ChatMsg {
   role: "user" | "assistant";
@@ -57,6 +58,7 @@ export function useChat(day: string) {
       setOpen(true);
       setError(null);
       setSending(true);
+      track("therapist_message_sent", { therapistId: therapistId ?? null });
       loadedDays.current.add(day); // od teraz wątek jest „świeży" lokalnie
       setMessages((prev) => [
         ...prev,

@@ -9,6 +9,7 @@
 import type { JournalEntry, JournalEntryDraft } from "@/types/journal";
 import { createClient } from "@/lib/supabase/client";
 import { removeEntryImages } from "@/lib/entry-images";
+import { track } from "@/lib/analytics";
 
 const supabase = createClient();
 const TABLE = "entries";
@@ -101,6 +102,7 @@ export async function create(draft: JournalEntryDraft): Promise<JournalEntry> {
   if (error) throw error;
 
   const entry = mapRow(data as EntryRow);
+  track("entry_created", { mood: entry.mood, images: entry.images.length });
   cache = [entry, ...cache];
   notify();
   return entry;

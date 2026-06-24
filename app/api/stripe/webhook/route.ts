@@ -8,6 +8,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import type Stripe from "stripe";
 import { getStripe } from "@/lib/stripe";
 import { recordTherapistUnlock } from "@/lib/therapist-access";
+import { getPostHogServer } from "@/lib/posthog-server";
 
 export const dynamic = "force-dynamic";
 
@@ -45,6 +46,25 @@ export async function POST(request: NextRequest) {
       } catch {
         // Zwróć 500, żeby Stripe ponowił dostarczenie.
         return NextResponse.json({ error: "Zapis nieudany." }, { status: 500 });
+      }
+
+      // Zdarzenie zakupu do PostHog (serwerowo — pewniejsze niż w przeglądarce).
+      const ph = getPostHogServer();
+      if (ph) {
+        try {
+          ph.capture({
+            distinctId: meta.user_id,
+            event: "therapist_purchased",
+            properties: {
+              therapist_id: meta.therapist_id,
+              amount_total: session.amount_total,
+              currency: session.currency,
+            },
+          });
+          await ph.shutdown();
+        } catch (err) {
+          console.error("PostHog purchase capture:", err);
+        }
       }
     }
   }

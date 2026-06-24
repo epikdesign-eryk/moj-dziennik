@@ -3,6 +3,7 @@ import { Nunito_Sans, Lora } from "next/font/google";
 import { cookies } from "next/headers";
 import "./globals.css";
 import { AppShell } from "@/components/app-shell";
+import { PostHogIdentify } from "@/components/posthog-identify";
 
 const sans = Nunito_Sans({
   variable: "--font-sans",
@@ -38,6 +39,7 @@ export default async function RootLayout({
       className={`${sans.variable} ${serif.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
+        <PostHogIdentify />
         <AppShell introSeen={introSeen}>{children}</AppShell>
       </body>
     </html>

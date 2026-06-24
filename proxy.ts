@@ -10,7 +10,9 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Wszystko poza zasobami statycznymi Next.js i typowymi plikami graficznymi.
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    // Wszystko poza zasobami statycznymi Next.js, plikami graficznymi oraz
+    // ścieżką `ingest` (reverse proxy do PostHog — nie może być chroniona authem,
+    // inaczej zdarzenia analityki są przekierowywane na /login).
+    "/((?!_next/static|_next/image|favicon.ico|ingest|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
 };

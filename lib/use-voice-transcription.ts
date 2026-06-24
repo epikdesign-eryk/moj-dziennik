@@ -8,6 +8,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { VoiceRecorder } from "@/lib/voice-recorder";
+import { track } from "@/lib/analytics";
 
 export type VoiceState = "idle" | "recording" | "processing";
 
@@ -56,6 +57,7 @@ export function useVoiceTranscription({ onText }: UseVoiceTranscriptionOptions) 
       }
       const text = (data.text ?? "").trim();
       if (text) {
+        track("voice_transcribed", { chars: text.length });
         onTextRef.current(text);
       } else {
         setError("Nie rozpoznano mowy. Spróbuj jeszcze raz.");

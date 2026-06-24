@@ -5,6 +5,7 @@
 // podpisane URL-e o ograniczonym czasie ważności.
 
 import { createClient } from "@/lib/supabase/client";
+import { track } from "@/lib/analytics";
 
 const supabase = createClient();
 export const BUCKET = "entry-images";
@@ -50,6 +51,7 @@ export async function uploadEntryImage(file: File): Promise<string> {
   });
   if (error) throw error;
 
+  track("photo_uploaded", { size: file.size, type: file.type });
   return path;
 }
 
